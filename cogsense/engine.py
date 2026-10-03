@@ -18,10 +18,12 @@ from cogsense.blink import BlinkDetector
 from cogsense.calibration import BLENDSHAPE_KEYS, Baseline, BaselineCalibrator, CalibrationState
 from cogsense.config import CogSenseConfig
 from cogsense.features import FEATURE_NAMES, extract
+from cogsense.fatigue import FatigueTracker
 from cogsense.filters import clip01
 from cogsense.fusion import CompoundRiskTracker, FusionHub, correlate
 from cogsense.geometry import normalize, to_pixel_space
 from cogsense.metrics import CognitiveMetrics, FusionSignals
+from cogsense.pupil import PupilTracker
 from cogsense.speech import SpeechMask
 
 PROVISIONAL_FRAMES = 30
@@ -55,6 +57,8 @@ class CogSenseEngine:
                                    self.cfg.blink_rate_window_s, self.cfg.microsleep_ms)
         self.speech = SpeechMask(self.cfg.speech_window_s, self.cfg.speech_aperture_std, self.cfg.speech_open_delta)
         self.metrics = CognitiveMetrics(self.cfg)
+        self.fatigue = FatigueTracker(self.cfg)
+        self.pupil = PupilTracker(self.cfg, self.fusion)
         self.calibrator = BaselineCalibrator(self.cfg.calibration_seconds, self.cfg.calibration_min_frames)
         self._provisional: list[np.ndarray] = []
         self._provisional_bs: list[dict[str, float]] = []
@@ -65,6 +69,7 @@ class CogSenseEngine:
     # ------------------------------------------------------------------ calibration
     def start_calibration(self, t: float) -> None:
         self.calibrator.start(t)
+        self.pupil.start_calibration()
 
     @property
     def calibration_status(self) -> str:
@@ -145,19 +150,22 @@ class CogSenseEngine:
             if new_base is not None:
                 self.baseline = new_base
                 self.au.reset()
+                self.pupil.finish_calibration()
 
         if conf < cfg.lost_confidence:
             self.au.reset()
             return self._finish(self._lost_payload(obs, utc_ms, "LOW_CONFIDENCE", face=face, conf=conf), t0)
 
         au = self.au.update(obs.timestamp_s, feats, self.baseline, obs.blendshapes, blink.closed, speech.active)
+        fat, fat_events = self.fatigue.update(obs.timestamp_s, ear_ratio, blink)
+        pupil = self.pupil.update(obs.timestamp_s)
         ctx = self.fusion.context(obs.timestamp_s)
         m = self.metrics.update(obs.timestamp_s, au, blink.rate_per_min, self._baseline_blink_rate(),
                                 FusionSignals(ctx.saccade_rate_hz, ctx.seconds_since_task_complete, ctx.active_aoi))
         insight, fusion_events = correlate(ctx, au.au04, au.au07, m.cognitive_friction_index,
                                            m.mental_effort_score, m.automation_surprise_flag, blink.microsleep, cfg,
                                            obs.timestamp_s, self._compound)
-        events = m.events + fusion_events
+        events = m.events + fusion_events + fat_events
         if blink.microsleep and blink.closure_ms - 1000.0 / cfg.target_hz < cfg.microsleep_ms:
             events.append({"type": "MICROSLEEP", "closure_ms": round(blink.closure_ms, 1)})
 
@@ -187,7 +195,8 @@ class CogSenseEngine:
                 "automation_surprise_flag": m.automation_surprise_flag,
                 "speech_interference_detected": speech.active,
             },
-            "fusion_context": self._fusion(ctx, insight),
+            "fatigue": fat,
+            "fusion_context": self._fusion(ctx, insight, pupil),
             "calibration": {"status": self.calibration_status,
                             "progress": round(self.calibrator.progress(obs.timestamp_s), 3)},
             "events": events,
@@ -201,7 +210,7 @@ class CogSenseEngine:
                 "roll_deg": round(face.roll_deg, 2), "within_operating_range": pose_ok}
 
     @staticmethod
-    def _fusion(ctx, insight: str | None) -> dict:
+    def _fusion(ctx, insight: str | None, pupil: dict | None = None) -> dict:
         return {
             "active_aoi": ctx.active_aoi,
             "gaze_px": None if ctx.gaze_x is None else [round(ctx.gaze_x, 1), round(ctx.gaze_y, 1)],
@@ -210,11 +219,13 @@ class CogSenseEngine:
             "rula_neck_score": ctx.rula_neck_score,
             "rula_trunk_score": ctx.rula_trunk_score,
             "mission_phase": ctx.mission_phase,
+            "pupil": pupil,
             "correlated_insight": insight,
         }
 
     def _lost_payload(self, obs: FaceObservation, utc_ms: int, reason: str, face=None, conf: float = 0.0) -> dict:
         """Graceful fallback: explicit low-confidence flag, never stale or hallucinated AUs."""
+        self.fatigue.mark_gap()  # a gap must never count as open or closed time
         if face is None:
             self.blink.reset_gap()
             self.au.reset()
@@ -230,6 +241,7 @@ class CogSenseEngine:
             "action_units": None,
             "blink": None,
             "cognitive_metrics": None,
+            "fatigue": None,
             "fusion_context": self._fusion(ctx, None),
             "calibration": {"status": self.calibration_status,
                             "progress": round(self.calibrator.progress(obs.timestamp_s), 3)},

@@ -103,6 +103,7 @@
       case "COMPOUND_POSTURE_RISK":
         return `Posture risk: RULA neck ${ev.rula_neck ?? "-"} / trunk ${ev.rula_trunk ?? "-"} + AU7 ${ev.au07.toFixed(2)}, AU4 ${ev.au04.toFixed(2)}${aoi}`;
       case "MICROSLEEP": return `Prolonged eye closure (AU43) ${Math.round(ev.closure_ms)} ms`;
+      case "FATIGUE_PERCLOS": return `PERCLOS ${(ev.perclos * 100).toFixed(0)}% reached the configured alert level`;
       default: return ev.type;
     }
   }
@@ -148,6 +149,10 @@
     $("mesBar").style.width = cm ? `${cm.mental_effort_score}%` : "0";
     $("cfiVal").textContent = cm ? cm.cognitive_friction_index.toFixed(2) : "--";
     $("cfiBar").style.width = cm ? `${cm.cognitive_friction_index * 100}%` : "0";
+    const fat = p.fatigue, pu = fc.pupil;
+    $("perclos").textContent = fat && fat.perclos != null ? `${(fat.perclos * 100).toFixed(0)}%${fat.coverage < 0.8 ? " (low coverage)" : ""}` : "--";
+    $("blinkDur").textContent = fat && fat.mean_blink_ms != null ? Math.round(fat.mean_blink_ms) : "--";
+    $("pupilD").textContent = pu && pu.change_mm != null ? `${pu.change_mm >= 0 ? "+" : ""}${pu.change_mm.toFixed(2)}${pu.reliable ? "" : " (light changed)"}` : "--";
     $("aoi").textContent = fc.active_aoi || "--";
     $("rula").textContent = fc.rula_grand_score ?? "--";
     $("neck").textContent = fc.rula_neck_score ?? "--";

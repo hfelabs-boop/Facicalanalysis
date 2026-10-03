@@ -14,6 +14,7 @@ class BlinkSample:
     last_blink_ms: float | None
     rate_per_min: float | None
     microsleep: bool  # AU43: closure exceeded the microsleep threshold
+    completed_ms: float | None = None  # duration of the closure that ended on this frame
 
 
 class BlinkDetector:
@@ -34,6 +35,7 @@ class BlinkDetector:
         if self._t_first is None:
             self._t_first = t
         onset = False
+        completed: float | None = None
         if not self.closed and ear_ratio < self.close_ratio:
             self.closed, onset = True, True
             self._closed_since = t
@@ -41,7 +43,7 @@ class BlinkDetector:
         elif self.closed and ear_ratio > self.open_ratio:
             self.closed = False
             if self._closed_since is not None:
-                self.last_blink_ms = (t - self._closed_since) * 1000.0
+                self.last_blink_ms = completed = (t - self._closed_since) * 1000.0
             self._closed_since = None
         while self._onsets and t - self._onsets[0] > self.rate_window_s:
             self._onsets.popleft()
@@ -49,7 +51,7 @@ class BlinkDetector:
         observed = min(t - self._t_first, self.rate_window_s)
         rate = len(self._onsets) * 60.0 / observed if observed >= 5.0 else None
         return BlinkSample(self.closed, onset, closure_ms, self.last_blink_ms, rate,
-                           closure_ms >= self.microsleep_ms)
+                           closure_ms >= self.microsleep_ms, completed)
 
     def reset_gap(self) -> None:
         """Called when tracking is lost so a closure doesn't span the gap."""

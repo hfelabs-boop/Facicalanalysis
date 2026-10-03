@@ -31,3 +31,21 @@ def test_documented_constants_match_config():
     ]
     for frag in expected:
         assert frag.replace("  ", " ") in text, frag
+
+
+def test_fatigue_and_pupil_docs_match_config():
+    c = CogSenseConfig()
+    text = re.sub(r"\s+", " ", DOCS)
+    for frag in [
+        f"<code>perclos_window_s</code> {c.perclos_window_s:.0f}",
+        f"<code>perclos_closed_openness</code> {c.perclos_closed_openness:.2f}",
+        f"<code>perclos_min_coverage_s</code> {c.perclos_min_coverage_s:.0f}",
+        f"<code>fatigue_max_dt_s</code> {c.fatigue_max_dt_s}",
+        f"<code>pupil_smooth_s</code> {c.pupil_smooth_s}",
+        f"<code>pupil_provisional_s</code> {c.pupil_provisional_s:.0f}",
+        f"<code>pupil_luma_tolerance</code> {c.pupil_luma_tolerance:.2f}",
+        f"ratio ≤ {c.perclos_closed_openness:.2f}",
+        f"|luminance shift| ≤ {c.pupil_luma_tolerance * 100:.0f} %",
+    ]:
+        assert frag in text, frag
+    assert c.perclos_alert is None  # the docs promise there is no default alert threshold

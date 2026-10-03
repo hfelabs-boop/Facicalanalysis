@@ -14,7 +14,7 @@ import numpy as np
 
 from cogsense.config import CogSenseConfig
 from cogsense.engine import CogSenseEngine, FaceObservation
-from cogsense.fusion import AOI, FusionHub, GazeSample, RulaSample
+from cogsense.fusion import AOI, FusionHub, GazeSample, PupilSample, RulaSample
 from cogsense.synthetic import FaceState, render
 
 W, H = 1920, 1080
@@ -40,6 +40,8 @@ class Phase:
     squint: float = 0.0
     talk_fraction: float = 0.0
     occlusion_s: float = 0.0
+    drowsy: float = 0.0  # 0..1: longer, more frequent eyelid closures (late-shift fatigue)
+    pupil_gain_mm: float = 0.8  # task-evoked dilation per unit of load (real responses are usually < 0.5 mm)
 
 
 DEFAULT_SCENARIO = [
@@ -51,6 +53,7 @@ DEFAULT_SCENARIO = [
     Phase("AUTOMATION_HANDOFF", 40, 0.35, {"ASSET_STATUS_PANEL": 3, "TACTICAL_RADAR_WIDGET_PRIMARY": 2}, (4, 2, 3),
           surprise_rate=4),
     Phase("DEGRADED_DISPLAY", 40, 0.3, {"TRACK_TABLE": 4, "COMMS_LOG": 1}, (5, 3, 3), squint=0.6, friction_rate=2),
+    Phase("LATE_SHIFT", 60, 0.2, {"TRACK_TABLE": 3, "COMMS_LOG": 2}, (4, 3, 3), drowsy=1.0),
 ]
 
 
@@ -123,8 +126,8 @@ class ScenarioSimulator:
 
                 # blinks: suppressed under load
                 if t >= next_blink:
-                    blink_until = t + rng.uniform(0.12, 0.25)
-                    rate = 18.0 * (1.0 - 0.6 * ph.load)
+                    blink_until = t + rng.uniform(0.12, 0.25) + ph.drowsy * rng.uniform(0.2, 0.5)
+                    rate = 18.0 * (1.0 - 0.6 * ph.load) + ph.drowsy * 10.0
                     next_blink = t + rng.exponential(60.0 / rate) + 0.3
                 if t < blink_until:
                     st.blink = 1.0
@@ -152,6 +155,9 @@ class ScenarioSimulator:
                 if ph.friction_rate and rng.random() < 0.15 * dt:
                     self.fusion.add_task_completion(t)
 
+                # pupil stream, as an eye tracker would send it: baseline plus load-driven dilation, invalid in blinks
+                self.fusion.add_pupil(PupilSample(t, 3.5 + ph.pupil_gain_mm * au4_slow + rng.normal(0, 0.02),
+                                                  valid=t >= blink_until, luminance=0.5))
                 occluded = occl_start is not None and occl_start <= t < occl_start + ph.occlusion_s
                 lm = None if occluded else render(st, W, H, noise_px=0.25, rng=rng)
                 obs = FaceObservation(t, lm, W, H, frame, self.start_utc_ms + int(t * 1000))

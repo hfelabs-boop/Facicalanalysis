@@ -86,7 +86,7 @@ iPhone notes:
 | FR-3.1 MES | `metrics.py` (formula below). |
 | FR-3.2 CFI | `metrics.py`: a continuous index plus discrete `CFI_EVENT`s. |
 | FR-3.3 automation surprise | `metrics.py`: `AUTOMATION_SURPRISE` event and a 1 s latched flag. |
-| FR-4.1 sync bus | `clock.py` stamps every frame at capture on one monotonic clock and slews offsets to UTC and LSL. `bus.py` handles WebSocket, LSL (`CogSense_FACS` 14-ch + `CogSense_Events` markers) and JSONL. |
+| FR-4.1 sync bus | `clock.py` stamps every frame at capture on one monotonic clock and slews offsets to UTC and LSL. `bus.py` handles WebSocket, LSL (`CogSense_FACS` 16-ch + `CogSense_Events` markers) and JSONL. |
 | FR-4.2 gaze/AOI | `fusion.FusionHub`: nearest-in-time gaze (staleness 250 ms), AOI hit-test and saccade rate. |
 | FR-4.3 biomechanical correlator | `fusion.correlate`: edge-triggered `COMPOUND_POSTURE_RISK` when RULA neck ≥ 3 or trunk ≥ 3 co-occurs with AU7 ≥ 0.40 or AU4 ≥ 0.50. |
 | NFR privacy | Frames stay in memory only. Video is written **only** with `--audit-video` while recording. Session logs hold numbers only; HUD mesh points go over WebSocket and are never logged. |
@@ -129,7 +129,7 @@ All thresholds live in `CogSenseConfig`. Override them with `cogsense run --conf
 
 ## Telemetry payload
 
-The payload is a superset of PRD §6. These fields are additive: `head_pose.within_operating_range`, `action_units.au43_eyes_closed`, `blink`, `fusion_context.{gaze_px,saccade_rate_hz,rula_trunk_score,mission_phase}`, `calibration`, `events`, `processing_ms` and `clock_drift_ms`.
+The payload is a superset of PRD §6. These fields are additive: `head_pose.within_operating_range`, `action_units.au43_eyes_closed`, `blink`, `fatigue` (PERCLOS and blink dynamics), `fusion_context.{gaze_px,saccade_rate_hz,rula_trunk_score,mission_phase,pupil}`, `calibration`, `events`, `processing_ms` and `clock_drift_ms`.
 
 ```json
 {
@@ -142,8 +142,10 @@ The payload is a superset of PRD §6. These fields are additive: `head_pose.with
   "cognitive_metrics": {"mental_effort_score": 68.4, "cognitive_friction_index": 0.81,
                         "automation_surprise_flag": false, "speech_interference_detected": false},
   "fusion_context": {"active_aoi": "TACTICAL_RADAR_WIDGET_PRIMARY", "gaze_px": [612.0, 388.5], "saccade_rate_hz": 4,
+                     "pupil": {"diameter_mm": 3.81, "baseline_mm": 3.50, "change_mm": 0.31, "change_pct": 8.86, "reliable": true},
                      "rula_grand_score": 5, "rula_neck_score": 3, "rula_trunk_score": 2,
                      "mission_phase": "SWARM_ENGAGEMENT", "correlated_insight": "HIGH_COGNITIVE_STRAIN_ON_COMPLEX_WIDGET"},
+  "fatigue": {"perclos": 0.07, "window_s": 60.0, "coverage": 0.99, "blink_count": 16, "mean_blink_ms": 148.0, "long_closures": 0},
   "calibration": {"status": "CALIBRATED", "progress": 1.0},
   "events": [{"type": "CFI_EVENT", "cfi": 0.81, "au04": 0.72, "trigger": "AU14", "aoi": "TACTICAL_RADAR_WIDGET_PRIMARY"}]
 }
@@ -168,13 +170,14 @@ Send JSON to `ws://host:8765`, either single objects or arrays. `t_utc_ms` (or `
 ```json
 {"type": "gaze", "x": 812, "y": 440, "saccade": false, "t_utc_ms": 1790947625101}
 {"type": "rula", "grand": 5, "neck": 3, "trunk": 2}
+{"type": "pupil", "diameter_mm": 3.42, "valid": true, "luminance": 0.5}
 {"type": "ui_event", "event": "TASK_COMPLETE"}
 {"type": "aoi_layout", "aois": [{"name": "RADAR", "x": 0, "y": 0, "w": 800, "h": 600}]}
 {"type": "phase", "name": "SWARM_ENGAGEMENT"}
 {"type": "control", "cmd": "calibrate" | "record_start" | "record_stop"}
 ```
 
-Gaze and RULA can also be pulled from existing LSL streams via `bus.LSLInletReader`. A sample client is in `examples/push_context.py`.
+Gaze, RULA and pupil can also be pulled from existing LSL streams via `bus.LSLInletReader`. The pupil message takes diameter in **millimetres** from your infrared eye tracker; a plain RGB camera cannot measure it. A sample client is in `examples/push_context.py`.
 
 ## Phase 2: training and validating against FACS benchmarks
 
@@ -196,7 +199,7 @@ cogsense bench --mediapipe     # per-frame latency: engine, CLAHE, landmarker
 
 ## Status against the acceptance criteria
 
-- **Implemented and covered by tests (88 tests):**
+- **Implemented and covered by tests (108 tests):**
   - AU extraction and pose invariance on synthetic meshes
   - calibration, speech mask, graceful fallback
   - MES / CFI / surprise logic and fusion/compound risk

@@ -51,6 +51,7 @@ def scenario():
     hold(1.5, lambda t, i: (FaceState(asym=morph), None))
     hold(1.0, lambda t, i: (FaceState(asym=morph, au7=0.7, yaw=22, pitch=-12, roll=8), None))  # pose + squint
     hold(0.7, lambda t, i: (FaceState(asym=morph, blink=1.0), None))  # microsleep
+    hold(0.5, lambda t, i: (FaceState(asym=morph), None))  # eyes reopen: the long closure completes
     hold(0.5, lambda t, i: (None, None))  # no face
     hold(0.5, lambda t, i: (FaceState(asym=morph, yaw=60), None))  # beyond pose range
     hold(1.0, lambda t, i: (FaceState(asym=morph, au14=0.6, mouth_open=0.5 + 0.5 * math.sin(t * 25)), None))  # speech
@@ -106,6 +107,15 @@ def test_values_match(runs):
         for k in ("yaw_deg", "pitch_deg", "roll_deg"):
             assert abs(a["head_pose"][k] - b["head_pose"][k]) < 0.01, (i, k)
         assert a["fusion_context"]["correlated_insight"] == b["fusion_context"]["correlated_insight"], i
+        fa, fb = a["fatigue"], b["fatigue"]
+        assert (fa["perclos"] is None) == (fb["perclos"] is None), (i, fa, fb)
+        if fa["perclos"] is not None:
+            assert abs(fa["perclos"] - fb["perclos"]) < 2e-3, (i, fa, fb)
+        assert abs(fa["coverage"] - fb["coverage"]) < 2e-3, i
+        assert fa["blink_count"] == fb["blink_count"] and fa["long_closures"] == fb["long_closures"], (i, fa, fb)
+        assert (fa["mean_blink_ms"] is None) == (fb["mean_blink_ms"] is None), i
+        if fa["mean_blink_ms"] is not None:
+            assert abs(fa["mean_blink_ms"] - fb["mean_blink_ms"]) < 0.2, (i, fa, fb)
     assert worst < 2e-3
 
 
@@ -117,6 +127,8 @@ def test_events_match_and_scenario_exercises_them(runs):
     assert {"CFI_EVENT", "AUTOMATION_SURPRISE", "MICROSLEEP"} <= kinds
     assert any(p["cognitive_metrics"] and p["cognitive_metrics"]["speech_interference_detected"] for p in py)
     assert py[-1]["calibration"]["status"] == "CALIBRATED"
+    last = [p for p in py if p["fatigue"]][-1]["fatigue"]
+    assert last["perclos"] is not None and last["blink_count"] > 0 and last["long_closures"] >= 1  # fatigue path exercised
 
 
 def test_calibrated_baseline_agrees(runs):

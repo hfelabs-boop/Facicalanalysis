@@ -76,7 +76,7 @@ canvas#timeline { width: 100%; height: 260px; display: block; }
 #findings li:hover { color: #fff; }
 #findings .t { color: var(--muted); margin-right: 8px; }
 #findings .CFI_EVENT { color: var(--cfi); } #findings .AUTOMATION_SURPRISE { color: var(--sur); }
-#findings .COMPOUND_POSTURE_RISK { color: var(--cmp); } #findings .MICROSLEEP { color: var(--warn); }
+#findings .COMPOUND_POSTURE_RISK { color: var(--cmp); } #findings .MICROSLEEP, #findings .FATIGUE_PERCLOS { color: var(--warn); }
 .muted { color: var(--muted); }
 code { background: #0b0f14; padding: 1px 4px; border-radius: 3px; }
 @media (max-width: 1000px) {

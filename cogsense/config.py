@@ -57,6 +57,18 @@ class CogSenseConfig:
     locked_confidence: float = 0.6
     min_iod_px: float = 25.0
 
+    # --- fatigue: PERCLOS-style eyelid closure (kept out of MES; see docs) ---
+    perclos_window_s: float = 60.0  # window length is a convention, not a fixed standard
+    perclos_closed_openness: float = 0.20  # eye counts as closed at <= 20 % of resting openness (">80 % closed")
+    perclos_min_coverage_s: float = 10.0  # valid tracking needed before a value is reported
+    perclos_alert: float | None = None  # no evidence-based cut-off: off unless set from validation data
+    fatigue_max_dt_s: float = 0.1  # cap frame gaps so dropouts cannot inflate closure time
+
+    # --- pupil (ingested from the eye tracker; a plain RGB camera cannot measure it) ---
+    pupil_smooth_s: float = 0.5
+    pupil_provisional_s: float = 5.0  # provisional baseline from the first seconds of valid data
+    pupil_luma_tolerance: float = 0.10  # design choice: flag pupil unreliable if display luminance shifts > 10 %
+
     # --- cognitive metrics (FR-3.x) ---
     mes_window_s: float = 5.0
     mes_au4_weight: float = 0.7

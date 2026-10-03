@@ -68,7 +68,8 @@ def analyze(records: list[dict], marker_threshold: float = 0.70, top_n: int = 5)
         if phase not in phases:
             phases[phase] = {"phase": phase, "start_s": rel, "end_s": rel, "frames": 0, "tracked": 0,
                              "mes_sum": 0.0, "mes_peak": 0.0, "cfi_sum": 0.0, "cfi_events": 0, "surprises": 0,
-                             "compound_risks": 0}
+                             "compound_risks": 0, "perclos_sum": 0.0, "perclos_n": 0, "perclos_peak": 0.0,
+                             "pupil_sum": 0.0, "pupil_n": 0, "pupil_peak": 0.0}
             phase_order.append(phase)
         ph = phases[phase]
         ph["frames"] += 1
@@ -83,6 +84,16 @@ def analyze(records: list[dict], marker_threshold: float = 0.70, top_n: int = 5)
             ph["mes_sum"] += mes
             ph["mes_peak"] = max(ph["mes_peak"], mes)
             ph["cfi_sum"] += cfi
+            fat = r.get("fatigue") or {}
+            if fat.get("perclos") is not None:
+                ph["perclos_sum"] += fat["perclos"]
+                ph["perclos_n"] += 1
+                ph["perclos_peak"] = max(ph["perclos_peak"], fat["perclos"])
+            pu = fc.get("pupil") or {}
+            if pu.get("change_mm") is not None and pu.get("reliable"):
+                ph["pupil_sum"] += pu["change_mm"]
+                ph["pupil_n"] += 1
+                ph["pupil_peak"] = max(ph["pupil_peak"], pu["change_mm"])
             if name:
                 a = aoi[name]
                 a["cfi_seconds"] += cfi * dt
@@ -126,6 +137,10 @@ def analyze(records: list[dict], marker_threshold: float = 0.70, top_n: int = 5)
             "cfi_mean": round(p["cfi_sum"] / n, 3), "cfi_events": p["cfi_events"], "automation_surprises": p["surprises"],
             "compound_posture_risks": p["compound_risks"],
             "tracking_availability_pct": round(100.0 * p["tracked"] / max(p["frames"], 1), 1),
+            "perclos_mean": round(p["perclos_sum"] / p["perclos_n"], 3) if p["perclos_n"] else None,
+            "perclos_peak": round(p["perclos_peak"], 3) if p["perclos_n"] else None,
+            "pupil_change_mm_mean": round(p["pupil_sum"] / p["pupil_n"], 3) if p["pupil_n"] else None,
+            "pupil_change_mm_peak": round(p["pupil_peak"], 3) if p["pupil_n"] else None,
         })
 
     ranked = sorted(aoi.items(), key=lambda kv: kv[1]["cfi_seconds"], reverse=True)[:top_n]
@@ -249,6 +264,16 @@ def export_pdf(rep: SessionReport, path: str | Path, title: str = "CogSense HFE 
             "compound_posture_risks", "tracking_availability_pct"]
     hdr = ["Phase", "Start", "Dur (s)", "MES mean", "MES peak", "CFI mean", "CFI evts", "Surprises", "Posture risks", "Tracked %"]
     story.append(table([hdr] + [[p[c] for c in cols] for p in rep.phases]))
+
+    if any(p["perclos_mean"] is not None or p["pupil_change_mm_mean"] is not None for p in rep.phases):
+        story.append(Paragraph("Fatigue and pupil by mission phase", styles["Heading2"]))
+        fmt = lambda v: "n/a" if v is None else v
+        story.append(table([["Phase", "PERCLOS mean", "PERCLOS peak", "Pupil change mean (mm)", "Pupil change peak (mm)"]] +
+                           [[p["phase"], fmt(p["perclos_mean"]), fmt(p["perclos_peak"]),
+                             fmt(p["pupil_change_mm_mean"]), fmt(p["pupil_change_mm_peak"])] for p in rep.phases]))
+        story.append(Paragraph("PERCLOS: share of time the eyes were more than 80 % closed over the previous 60 s. "
+                               "Pupil change: from the neutral baseline, only while display luminance was stable. "
+                               "Neither feeds the Mental Effort Score, and no alert thresholds are implied.", styles["Normal"]))
 
     story.append(Paragraph(f"Top {len(rep.top_aois)} UI widgets by cumulative cognitive friction", styles["Heading2"]))
     story.append(table([["#", "AOI", "Cum. CFI (CFI·s)", "Dwell (s)", "Mean CFI", "Peak", "Events", "Markers >0.70"]] +

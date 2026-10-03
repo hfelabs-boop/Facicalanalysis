@@ -45,6 +45,14 @@ class RulaSample:
 
 
 @dataclass
+class PupilSample:
+    t: float
+    diameter_mm: float
+    valid: bool = True
+    luminance: float | None = None  # optional display luminance (any consistent unit)
+
+
+@dataclass
 class FusionContext:
     active_aoi: str | None
     gaze_x: float | None
@@ -101,6 +109,7 @@ class FusionHub:
         self._gaze = _Timeline()
         self._rula = _Timeline(1024)
         self._task_completions: deque[float] = deque(maxlen=256)
+        self._pupil = _Timeline(8192)
         self.aois: list[AOI] = []
         self.mission_phase: str | None = None
 
@@ -119,6 +128,14 @@ class FusionHub:
     def add_rula(self, s: RulaSample) -> None:
         with self._lock:
             self._rula.add(s.t, s)
+
+    def add_pupil(self, s: PupilSample) -> None:
+        with self._lock:
+            self._pupil.add(s.t, s)
+
+    def pupil_between(self, t0: float, t1: float) -> list[PupilSample]:
+        with self._lock:
+            return [it for ti, it in zip(self._pupil.ts, self._pupil.items) if t0 < ti <= t1]
 
     def add_task_completion(self, t: float) -> None:
         with self._lock:

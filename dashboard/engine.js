@@ -27,6 +27,7 @@
     cfi_saccade_rate_hz: 3.0, cfi_task_completion_window_s: 2.0, cfi_event_refractory_s: 1.0,
     cfi_marker_threshold: 0.70,
     surprise_brow_threshold: 0.50, surprise_window_s: 0.8, surprise_au4_surge: 0.50, surprise_latch_s: 1.0,
+    perclos_window_s: 60.0, perclos_closed_openness: 0.20, perclos_min_coverage_s: 10.0, perclos_alert: null, fatigue_max_dt_s: 0.1,
     rula_neck_threshold: 3, rula_trunk_threshold: 3, compound_au7_threshold: 0.40, compound_au4_threshold: 0.50,
   };
 
@@ -214,20 +215,53 @@
     }
     update(t, earRatio) {
       if (this.tFirst === null) this.tFirst = t;
-      let onset = false;
+      let onset = false, completed = null;
       if (!this.closed && earRatio < this.close) { this.closed = true; onset = true; this.closedSince = t; this.onsets.push(t); }
       else if (this.closed && earRatio > this.open) {
         this.closed = false;
-        if (this.closedSince !== null) this.lastBlinkMs = (t - this.closedSince) * 1000;
+        if (this.closedSince !== null) this.lastBlinkMs = completed = (t - this.closedSince) * 1000;
         this.closedSince = null;
       }
       while (this.onsets.length && t - this.onsets[0] > this.window) this.onsets.shift();
       const closureMs = this.closed && this.closedSince !== null ? (t - this.closedSince) * 1000 : 0;
       const observed = Math.min(t - this.tFirst, this.window);
       return { closed: this.closed, onset, closure_ms: closureMs, last_blink_ms: this.lastBlinkMs,
-        rate_per_min: observed >= 5 ? (this.onsets.length * 60) / observed : null, microsleep: closureMs >= this.microMs };
+        rate_per_min: observed >= 5 ? (this.onsets.length * 60) / observed : null, microsleep: closureMs >= this.microMs,
+        completed_ms: completed };
     }
     resetGap() { this.closed = false; this.closedSince = null; }
+  }
+
+  // ------------------------------------------------------------------ fatigue (PERCLOS-style closure; separate from MES)
+  class FatigueTracker {
+    constructor(cfg) { this.cfg = cfg; this.segments = []; this.blinks = []; this.prevT = null; this.tFirst = null; this.lastAlert = -1e9; }
+    markGap() { this.prevT = null; }
+    update(t, earRatio, blink) {
+      const cfg = this.cfg;
+      if (this.tFirst === null) this.tFirst = t;
+      if (this.prevT !== null) {
+        const dt = Math.min(Math.max(t - this.prevT, 0), cfg.fatigue_max_dt_s);
+        this.segments.push([t, dt, earRatio <= cfg.perclos_closed_openness]);
+      }
+      this.prevT = t;
+      if (blink.completed_ms !== null) this.blinks.push([t, blink.completed_ms]);
+      let k = 0; while (k < this.segments.length && t - this.segments[k][0] > cfg.perclos_window_s) k++; if (k) this.segments.splice(0, k);
+      k = 0; while (k < this.blinks.length && t - this.blinks[k][0] > cfg.perclos_window_s) k++; if (k) this.blinks.splice(0, k);
+      let valid = 0, closed = 0;
+      for (const [, dt, c] of this.segments) { valid += dt; if (c) closed += dt; }
+      const elapsed = Math.min(t - this.tFirst, cfg.perclos_window_s);
+      const coverage = elapsed > 0 ? Math.min(valid / elapsed, 1) : 0;
+      const perclos = valid >= cfg.perclos_min_coverage_s ? closed / valid : null;
+      const durs = this.blinks.map((b) => b[1]);
+      const out = { perclos: perclos === null ? null : rnd(perclos, 3), window_s: cfg.perclos_window_s, coverage: rnd(coverage, 3),
+        blink_count: durs.length, mean_blink_ms: durs.length ? rnd(mean(durs), 1) : null,
+        long_closures: durs.filter((d) => d >= cfg.microsleep_ms).length };
+      const events = [];
+      if (cfg.perclos_alert !== null && perclos !== null && perclos >= cfg.perclos_alert && t - this.lastAlert >= cfg.perclos_window_s) {
+        this.lastAlert = t; events.push({ type: "FATIGUE_PERCLOS", perclos: rnd(perclos, 3), coverage: rnd(coverage, 3) });
+      }
+      return [out, events];
+    }
   }
 
   // ------------------------------------------------------------------ speech mask (FR-2.2)
@@ -396,6 +430,7 @@
       this.blink = new BlinkDetector(this.cfg);
       this.speech = new SpeechMask(this.cfg);
       this.metrics = new CognitiveMetrics(this.cfg);
+      this.fatigue = new FatigueTracker(this.cfg);
       this.calibrator = new BaselineCalibrator(this.cfg.calibration_seconds, this.cfg.calibration_min_frames);
       this.compound = new CompoundRiskTracker();
       this.provisional = []; this.provisionalBs = []; this.prevPoints = null;
@@ -471,12 +506,13 @@
       if (conf < cfg.lost_confidence) { this.au.reset(); return this.finish(this.lostPayload(obs, utc, "LOW_CONFIDENCE", face, conf), t0); }
 
       const au = this.au.update(T, feats, this.baseline, obs.blendshapes || null, blink.closed, speech.active);
+      const [fat, fatEvents] = this.fatigue.update(T, (feats.ear_r + feats.ear_l) / 2 / earBase, blink);
       const ctx = this.context;
       const m = this.metrics.update(T, au, blink.rate_per_min, this.baselineBlinkRate(),
         { saccade_rate_hz: ctx.saccade_rate_hz, seconds_since_task_complete: ctx.seconds_since_task_complete, active_aoi: ctx.active_aoi });
       const [insight, fusionEvents] = correlate(ctx, au.au04, au.au07, m.cognitive_friction_index, m.mental_effort_score,
         m.automation_surprise_flag, blink.microsleep, cfg, T, this.compound);
-      const events = m.events.concat(fusionEvents);
+      const events = m.events.concat(fusionEvents, fatEvents);
       if (blink.microsleep && blink.closure_ms - 1000 / cfg.target_hz < cfg.microsleep_ms) events.push({ type: "MICROSLEEP", closure_ms: rnd(blink.closure_ms, 1) });
 
       return this.finish({
@@ -492,6 +528,7 @@
           last_duration_ms: blink.last_blink_ms === null ? null : rnd(blink.last_blink_ms, 1), closure_ms: rnd(blink.closure_ms, 1) },
         cognitive_metrics: { mental_effort_score: m.mental_effort_score, cognitive_friction_index: m.cognitive_friction_index,
           automation_surprise_flag: m.automation_surprise_flag, speech_interference_detected: speech.active },
+        fatigue: fat,
         fusion_context: this.fusionOut(ctx, insight),
         calibration: { status: this.calibrationStatus, progress: rnd(this.calibrator.progress(T), 3) },
         events,
@@ -503,17 +540,18 @@
     fusionOut(ctx, insight) {
       return { active_aoi: ctx.active_aoi, gaze_px: ctx.gaze_x === null ? null : [rnd(ctx.gaze_x, 1), rnd(ctx.gaze_y, 1)],
         saccade_rate_hz: ctx.saccade_rate_hz, rula_grand_score: ctx.rula_grand_score, rula_neck_score: ctx.rula_neck_score,
-        rula_trunk_score: ctx.rula_trunk_score, mission_phase: ctx.mission_phase, correlated_insight: insight };
+        rula_trunk_score: ctx.rula_trunk_score, mission_phase: ctx.mission_phase, pupil: null, correlated_insight: insight };
     }
 
     /** Graceful fallback: explicit low-confidence flag, never stale or hallucinated AUs. */
     lostPayload(obs, utc, reason, face, conf) {
+      this.fatigue.markGap(); // a gap must never count as open or closed time
       if (!face) { this.blink.resetGap(); this.au.reset(); this.prevPoints = null; }
       return {
         timestamp_utc_ms: utc, frame_id: obs.frame_id || 0,
         tracking_status: reason === "ACQUIRING" ? "ACQUIRING" : "LOST", tracking_loss_reason: reason,
         confidence: rnd(reason !== "ACQUIRING" ? Math.min(conf, this.cfg.lost_confidence - 1e-3) : conf, 3),
-        head_pose: face ? this.pose(face, false) : null, action_units: null, blink: null, cognitive_metrics: null,
+        head_pose: face ? this.pose(face, false) : null, action_units: null, blink: null, cognitive_metrics: null, fatigue: null,
         fusion_context: this.fusionOut(this.context, null),
         calibration: { status: this.calibrationStatus, progress: rnd(this.calibrator.progress(obs.timestamp_s), 3) }, events: [],
       };

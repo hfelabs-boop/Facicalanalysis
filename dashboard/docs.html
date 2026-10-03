@@ -45,6 +45,13 @@
         <li><a href="#surprise">Automation surprise</a></li>
       </ol>
     </li>
+    <li><a href="#fatigue">Fatigue &amp; pupil</a>
+      <ol>
+        <li><a href="#perclos">PERCLOS &amp; blink dynamics</a></li>
+        <li><a href="#pupil">Pupil change</a></li>
+        <li><a href="#fatigue-config">Outputs &amp; settings</a></li>
+      </ol>
+    </li>
     <li><a href="#evidence">Research evidence</a>
       <ol>
         <li><a href="#evidence-mes">Effort: formula &amp; evidence</a></li>
@@ -254,6 +261,51 @@ event:       a surge within 800 ms after a brow raise</div>
 <p>It logs <code>AUTOMATION_SURPRISE</code> once and holds <code>automation_surprise_flag</code> for 1 s. The pattern is a startle or novelty response followed by effortful re-evaluation, which can mark a human-autonomy hand-off breakdown.</p>
 </section>
 
+<section id="fatigue">
+<h2>Fatigue and pupil indicators</h2>
+<p>Two separate streams, deliberately <b>not</b> mixed into the Mental Effort Score or the Cognitive Friction Index: no study fixes how to weight them against the facial cues, and fatigue is a different construct from effort. The reasons and the research are in <a href="#other-table">Other facial signals</a>.</p>
+
+<h3 id="perclos">PERCLOS and blink dynamics (fatigue)</h3>
+<div class="formula">ratio  = EAR / EAR_baseline                   eye openness relative to this person's resting openness
+closed = ratio ≤ 0.20                          that is, the eye is at least 80 % closed
+PERCLOS = Σ dt(closed frames) / Σ dt(valid frames),  over the last 60 s</div>
+<ul>
+  <li><b>dt</b> is the time since the previous <i>valid</i> frame, capped at 0.1 s. The first frame after a tracking dropout contributes <b>no time</b>, so a dropout or a flickering tracker can never count as open or closed time.</li>
+  <li><b>Reported only after 10 s of valid tracking.</b> <code>coverage</code> is valid time divided by the elapsed window (up to 1); a low value warns that the figure rests on little data.</li>
+  <li><b>Normal blinks count.</b> An alert person typically reads a few percent. In the simulator, alert operators read about 5–9 % and a drowsy operator about 20 % once the window has filled.</li>
+  <li><code>blink_count</code>, <code>mean_blink_ms</code> and <code>long_closures</code> (closures of at least 500 ms) cover the closures that <i>completed</i> in the window. A closure interrupted by tracking loss is not counted, because its length is unknown.</li>
+  <li><b>No alert threshold by default.</b> The research does not give a validated cut-off for this setup. Set <code>perclos_alert</code> to log a <code>FATIGUE_PERCLOS</code> event (at most once per window) once you have validation data.</li>
+</ul>
+<div class="example"><b>Worked example.</b> Eyes fully closed 0.6 s out of every 3 s for 70 s: <b>PERCLOS = 0.20</b> (this is one of the unit tests).</div>
+<p class="note">What it can and cannot tell you: PERCLOS tracked lapses well in sleep-deprivation work, but the 2023 review found it unaffected in moderate drowsiness, in older adults and in aviation tasks, and that it can miss inattention. Cameras are limited by frame rate, glasses and reflections. Definitions also vary (window, threshold, sampling rate); the 60 s window and 20 % threshold here follow the common “more than 80 % closed” definition, and the window length is a convention. Treat it as one fatigue cue, not a verdict.</p>
+
+<h3 id="pupil">Pupil change (from the eye tracker)</h3>
+<p>A plain RGB camera cannot resolve the pupil, so diameter comes from your infrared eye tracker. Send it on the bus:</p>
+<pre>{"type": "pupil", "diameter_mm": 3.42, "valid": true, "luminance": 0.50, "t_utc_ms": 1790947625101}</pre>
+<div class="formula">smoothed   = mean of valid samples in the last 0.5 s            (no sample in that window → no reading)
+baseline   = median of the diameter during the 15 s calibration   (provisional: first 5 s of valid data)
+change     = smoothed − baseline                                   in mm, and as a percentage of baseline
+luminance shift = (luminance − baseline luminance) / baseline luminance
+reliable   = a baseline exists AND |luminance shift| ≤ 10 %       (shift is skipped if luminance is not sent)</div>
+<ul>
+  <li><b>Millimetres only.</b> If your tracker reports pixels or arbitrary units, convert before sending.</li>
+  <li><b>Invalid, non-finite and non-positive samples are ignored</b>, and stale data is never reported: if no sample arrived in the last 0.5 s the field is <code>null</code>.</li>
+  <li><b>The pupil also responds to light.</b> Send display luminance so a brightness change is flagged <code>reliable: false</code> instead of being read as workload. The 10 % tolerance is a design choice, not from the literature; tune it per display. Without luminance input the check is skipped.</li>
+  <li><b>Scale:</b> the task-evoked response is usually under 0.5 mm, so judge changes against that, and against the tracker's own noise.</li>
+  <li>Also accepted over LSL (<code>LSLInletReader(pupil_name=...)</code>, samples <code>[diameter_mm, valid, luminance]</code>). It does not run in the phone camera mode, which has no eye tracker.</li>
+</ul>
+
+<h3 id="fatigue-config">Outputs and settings</h3>
+<table>
+<tr><th>Where</th><th>Field</th><th>Meaning</th></tr>
+<tr><td><code>fatigue</code></td><td><code>perclos</code>, <code>window_s</code>, <code>coverage</code>, <code>blink_count</code>, <code>mean_blink_ms</code>, <code>long_closures</code></td><td>As above. <code>null</code> when tracking is lost.</td></tr>
+<tr><td><code>fusion_context.pupil</code></td><td><code>diameter_mm</code>, <code>baseline_mm</code>, <code>baseline_source</code>, <code>change_mm</code>, <code>change_pct</code>, <code>luminance_shift</code>, <code>reliable</code></td><td>As above. <code>null</code> with no fresh tracker data.</td></tr>
+<tr><td>LSL stream</td><td><code>perclos</code>, <code>pupil_change_mm</code></td><td>Two extra channels (16 in total); NaN when unavailable.</td></tr>
+<tr><td>Report</td><td><code>perclos_mean/peak</code>, <code>pupil_change_mm_mean/peak</code></td><td>Per mission phase, in the CSV and in a PDF table. Pupil figures use only <i>reliable</i> samples.</td></tr>
+<tr><td>Config</td><td><code>perclos_window_s</code> 60, <code>perclos_closed_openness</code> 0.20, <code>perclos_min_coverage_s</code> 10, <code>perclos_alert</code> none, <code>fatigue_max_dt_s</code> 0.1, <code>pupil_smooth_s</code> 0.5, <code>pupil_provisional_s</code> 5, <code>pupil_luma_tolerance</code> 0.10</td><td></td></tr>
+</table>
+</section>
+
 <section id="evidence">
 <h2>Research evidence</h2>
 <p class="lead">What published work does and does not say about the calculations above. Each source below was checked against its text or abstract; where only a secondary summary was available, the text says “as reported by”. Short version: the <b>direction</b> of the main cues is supported, the <b>exact weights, windows and thresholds are not</b>, and five defaults conflict with or go beyond the evidence (see <a href="#evidence-gaps">where the evidence disagrees</a>).</p>
@@ -382,7 +434,7 @@ halved for 2 s after a task completion</div>
 
 <section id="other-signals">
 <h2>Other facial signals and micro-gestures</h2>
-<p class="lead">Which other face-based signals the research supports, and whether this setup can measure them: an RGB camera with the MediaPipe face mesh at 30–60 Hz, plus the suite’s eye tracker. Only published findings are used. Where evidence is thin, indirect or does not apply, the table says so. <b>Nothing in this section is implemented yet.</b></p>
+<p class="lead">Which other face-based signals the research supports, and whether this setup can measure them: an RGB camera with the MediaPipe face mesh at 30–60 Hz, plus the suite’s eye tracker. Only published findings are used. Where evidence is thin, indirect or does not apply, the table says so. <b>Implemented so far from this list: the fatigue indicators and pupil ingestion</b> (see <a href="#fatigue">Fatigue &amp; pupil</a>); the rest are recommendations.</p>
 
 <h3 id="au-accuracy">First, a reality check on AU detection accuracy</h3>
 <ul>
@@ -461,8 +513,8 @@ halved for 2 s after a task completion</div>
 <h3 id="other-priorities">What the evidence suggests, in order</h3>
 <p>These are recommendations drawn from the evidence above, not results.</p>
 <ol class="steps">
-  <li><b>Pupil from the eye tracker.</b> The strongest physiological effort cue, and the suite already has the right sensor. Needs the tracker to export pupil diameter, plus luminance control.</li>
-  <li><b>A separate fatigue indicator.</b> Replace the fixed 500 ms eye-closure flag with PERCLOS-style closure fraction, blink duration and lid-reopening delay, kept <i>out of</i> the effort score. Validate the closure threshold, and check glasses and frame-rate limits.</li>
+  <li><b>Pupil from the eye tracker.</b> The strongest physiological effort cue, and the suite already has the right sensor. <i>Implemented</i> as a separate stream (<a href="#pupil">how it is calculated</a>); it needs the tracker to export pupil diameter in mm, and display luminance to be sent or controlled.</li>
+  <li><b>A separate fatigue indicator.</b> PERCLOS-style closure fraction and blink duration, kept <i>out of</i> the effort score. <i>Implemented</i> (<a href="#perclos">how it is calculated</a>); the fixed 500 ms eye-closure flag remains for compatibility. Lid-reopening delay and closure speed are <b>not</b> implemented: they need frame rates well above what a 30 Hz phone camera gives. The closure threshold still needs validation, and glasses and reflections limit accuracy.</li>
   <li><b>Lip tightener/presser as an added friction cue, after validation.</b> It has the best direct evidence for frustration, but it is also hard to detect, so measure its accuracy against labelled data before it influences CFI.</li>
   <li><b>Use AU4 mainly for effort and concentration.</b> The friction evidence for AU4 and AU14 alone is mixed, so friction should rest on co-occurring cues and task context.</li>
   <li><b>Leave out</b> micro-expression detection, head movement as a load cue, and gaze aversion.</li>

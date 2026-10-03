@@ -62,3 +62,30 @@ def test_load_session_round_trip(session, tmp_path):
     path = tmp_path / "s.jsonl"
     path.write_text("\n".join(json.dumps(r) for r in session[:50]) + "\n")
     assert load_session(path) == session[:50]
+
+
+def test_fatigue_and_pupil_flow_into_the_report(tmp_path):
+    phases = [
+        Phase("CALIBRATION", 16, 0.0, {"COMMS_LOG": 1}, (2, 1, 1)),
+        Phase("TRANSIT", 40, 0.15, {"COMMS_LOG": 1}, (2, 1, 1)),
+        Phase("ENGAGED", 40, 0.6, {"TACTICAL_RADAR_WIDGET_PRIMARY": 1}, (3, 2, 2)),
+        Phase("LATE_SHIFT", 100, 0.15, {"COMMS_LOG": 1}, (3, 2, 2), drowsy=1.0),
+    ]
+    session = list(ScenarioSimulator(phases, fps=30, seed=5).run())
+    rep = analyze(session)
+    by = {p["phase"]: p for p in rep.phases}
+    # Normal blinking already counts as closed time (about 5-9 % here); a drowsy operator closes the eyes
+    # for roughly a fifth of the window once it has filled, so the phase peak is clearly higher.
+    assert 0.02 < by["TRANSIT"]["perclos_mean"] < 0.12
+    assert by["LATE_SHIFT"]["perclos_mean"] > 1.8 * by["TRANSIT"]["perclos_mean"]
+    assert by["LATE_SHIFT"]["perclos_peak"] > 0.2
+    # Pupil dilates under load relative to the calibrated baseline; a calm phase stays near it.
+    assert by["ENGAGED"]["pupil_change_mm_mean"] > 0.3
+    assert abs(by["TRANSIT"]["pupil_change_mm_mean"]) < 0.2
+    p = next(r for r in session if r["fusion_context"].get("pupil")
+             and r["fusion_context"]["pupil"]["baseline_source"] == "calibration")
+    assert p["fusion_context"]["pupil"]["reliable"] is True
+    export_csv(rep, tmp_path / "csv")
+    header = (tmp_path / "csv" / "phase_summary.csv").read_text().splitlines()[0]
+    assert "perclos_mean" in header and "pupil_change_mm_mean" in header
+    assert export_pdf(rep, tmp_path / "r.pdf").read_bytes()[:4] == b"%PDF"

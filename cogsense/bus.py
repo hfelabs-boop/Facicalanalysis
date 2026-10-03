@@ -6,6 +6,7 @@ the dashboard) are JSON objects with a ``type`` field:
 
   {"type": "gaze", "x": 812, "y": 440, "saccade": false, "t_utc_ms": 1790947625101}
   {"type": "rula", "grand": 5, "neck": 3, "trunk": 2, "t_utc_ms": ...}
+  {"type": "pupil", "diameter_mm": 3.42, "valid": true, "luminance": 0.5, "t_utc_ms": ...}
   {"type": "ui_event", "event": "TASK_COMPLETE", "t_utc_ms": ...}
   {"type": "aoi_layout", "aois": [{"name": "RADAR", "x": 0, "y": 0, "w": 800, "h": 600}]}
   {"type": "phase", "name": "SWARM_ENGAGEMENT"}
@@ -24,7 +25,7 @@ from pathlib import Path
 from typing import Callable
 
 from cogsense.clock import SyncClock
-from cogsense.fusion import AOI, FusionHub, GazeSample, RulaSample
+from cogsense.fusion import AOI, FusionHub, GazeSample, PupilSample, RulaSample
 
 log = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ except Exception:  # pragma: no cover
 LSL_CHANNELS = (
     "confidence", "yaw_deg", "pitch_deg", "roll_deg",
     "au04", "au07", "au01", "au02", "au14", "au45",
-    "mes", "cfi", "surprise", "speech",
+    "mes", "cfi", "surprise", "speech", "perclos", "pupil_change_mm",
 )
 
 
@@ -46,6 +47,8 @@ def payload_to_lsl_sample(p: dict) -> list[float]:
     hp = p.get("head_pose") or {}
     au = p.get("action_units") or {}
     cm = p.get("cognitive_metrics") or {}
+    fat = p.get("fatigue") or {}
+    pup = (p.get("fusion_context") or {}).get("pupil") or {}
     def g(d, k):
         v = d.get(k)
         return nan if v is None else float(v)
@@ -55,6 +58,7 @@ def payload_to_lsl_sample(p: dict) -> list[float]:
         g(au, "au02_outer_brow_raiser"), g(au, "au14_dimpler"), g(au, "au45_blink_state"),
         g(cm, "mental_effort_score"), g(cm, "cognitive_friction_index"),
         g(cm, "automation_surprise_flag"), g(cm, "speech_interference_detected"),
+        g(fat, "perclos"), g(pup, "change_mm"),
     ]
 
 
@@ -79,6 +83,12 @@ class InboundRouter:
             self.fusion.add_gaze(GazeSample(self._t(msg), float(msg["x"]), float(msg["y"]), bool(msg.get("saccade", False))))
         elif kind == "rula":
             self.fusion.add_rula(RulaSample(self._t(msg), int(msg["grand"]), msg.get("neck"), msg.get("trunk")))
+        elif kind == "pupil":
+            d = msg.get("diameter_mm")
+            if d is not None:
+                lum = msg.get("luminance")
+                self.fusion.add_pupil(PupilSample(self._t(msg), float(d), bool(msg.get("valid", True)),
+                                                  None if lum is None else float(lum)))
         elif kind == "ui_event":
             if str(msg.get("event", "")).upper() in ("TASK_COMPLETE", "TASK_COMPLETED"):
                 self.fusion.add_task_completion(self._t(msg))
@@ -181,14 +191,16 @@ class LSLPublisher:
 class LSLInletReader:
     """Optional: pull gaze / RULA context from existing LSL streams.
 
-    Gaze channels are expected as [x, y, (saccade)], RULA as [grand, neck, trunk].
+    Gaze channels are expected as [x, y, (saccade)], RULA as [grand, neck, trunk] and pupil as
+    [diameter_mm, (valid), (luminance)].
     """
 
-    def __init__(self, router: InboundRouter, gaze_name: str | None = None, rula_name: str | None = None):
+    def __init__(self, router: InboundRouter, gaze_name: str | None = None, rula_name: str | None = None,
+                 pupil_name: str | None = None):
         if pylsl is None:
             raise RuntimeError("pylsl is not available")
         self.router = router
-        self.specs = [(n, k) for n, k in ((gaze_name, "gaze"), (rula_name, "rula")) if n]
+        self.specs = [(n, k) for n, k in ((gaze_name, "gaze"), (rula_name, "rula"), (pupil_name, "pupil")) if n]
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
 
@@ -209,7 +221,10 @@ class LSLInletReader:
             if sample is None:
                 continue
             ts += inlet.time_correction()
-            if kind == "gaze":
+            if kind == "pupil":  # [diameter_mm, valid (optional), luminance (optional)]
+                msg = {"type": "pupil", "diameter_mm": sample[0], "valid": bool(sample[1]) if len(sample) > 1 else True,
+                       "luminance": sample[2] if len(sample) > 2 else None, "t_lsl": ts}
+            elif kind == "gaze":
                 msg = {"type": "gaze", "x": sample[0], "y": sample[1],
                        "saccade": bool(sample[2]) if len(sample) > 2 else False, "t_lsl": ts}
             else:
