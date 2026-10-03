@@ -533,6 +533,10 @@
     }
   }
   $("camStart").onclick = async () => {
+    if (!window.CogSenseCamera || !window.CogSense) { // a script failed to download (weak connection)
+      camStatus("Part of the page failed to load. Check your connection, reload the page and try again.", true);
+      return;
+    }
     const sup = window.CogSenseCamera.support();
     if (!sup.ok) { camStatus(sup.message, true); return; }
     $("camStart").disabled = true;
