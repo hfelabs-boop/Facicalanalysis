@@ -67,6 +67,8 @@ class FaceState:
     au4: float = 0.0
     au7: float = 0.0
     au14: float = 0.0
+    au24: float = 0.0  # lips pressed together: visible lips thin by 40 % at 1.0, inner gap closes
+    smile: float = 0.0  # closed-lip smile: corners widen and the lips stretch thin (a false-positive trap for AU24)
     blink: float = 0.0  # 0 open … 1 fully closed
     mouth_open: float = 0.0  # jaw drop for speech/chewing, 0…1
     yaw: float = 0.0
@@ -102,6 +104,18 @@ def deform(state: FaceState) -> np.ndarray:
         corner = L.MOUTH_R if side < 0 else L.MOUTH_L
         p[corner, 2] += 0.06 * state.au14
         p[corner, 0] += side * 0.03 * state.au14
+
+    a = state.au24
+    if a:
+        p[L.LIP_UPPER_OUTER, 1] += 0.12 * 0.5543 * a
+        p[L.LIP_LOWER_OUTER, 1] -= 0.18 * 0.5543 * a
+        p[L.LIP_UPPER_INNER, 1] += 0.02 * a
+        p[L.LIP_LOWER_INNER, 1] -= 0.02 * a
+    if state.smile:
+        p[L.MOUTH_R, 0] -= 0.12 * state.smile
+        p[L.MOUTH_L, 0] += 0.12 * state.smile
+        p[L.LIP_UPPER_OUTER, 1] += 0.012 * state.smile
+        p[L.LIP_LOWER_OUTER, 1] -= 0.018 * state.smile
 
     jaw = 0.25 * state.mouth_open
     for i in (L.LIP_LOWER_INNER, L.LIP_LOWER_OUTER, L.CHIN):

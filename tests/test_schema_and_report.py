@@ -7,7 +7,7 @@ PRD_SCHEMA = {
     "timestamp_utc_ms": None, "frame_id": None, "tracking_status": None, "confidence": None,
     "head_pose": {"yaw_deg", "pitch_deg", "roll_deg"},
     "action_units": {"au04_brow_lowerer", "au07_lid_tightener", "au01_inner_brow_raiser", "au02_outer_brow_raiser",
-                     "au14_dimpler", "au45_blink_state"},
+                     "au14_dimpler", "au24_lip_presser", "au45_blink_state"},
     "cognitive_metrics": {"mental_effort_score", "cognitive_friction_index", "automation_surprise_flag",
                           "speech_interference_detected"},
     "fusion_context": {"active_aoi", "rula_grand_score", "rula_neck_score", "correlated_insight"},
@@ -46,6 +46,8 @@ def test_report(session, tmp_path):
     phases = {p["phase"]: p for p in rep.phases}
     assert phases["SWARM_ENGAGEMENT"]["mes_mean"] > phases["CALIBRATION"]["mes_mean"] + 20
     assert rep.top_aois[0]["aoi"] == "TACTICAL_RADAR_WIDGET_PRIMARY"
+    assert phases["SWARM_ENGAGEMENT"]["lip_press_peak"] > 0.3  # friction events carry a lip press in the simulator
+    assert phases["CALIBRATION"]["lip_press_peak"] < 0.1
     assert len(rep.top_aois) <= 5
     assert rep.crosstab["3"]["HIGH (>=0.40)"] > 5
     assert any("neck flexion" in f for f in rep.findings)

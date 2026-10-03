@@ -14,8 +14,8 @@
   const DEFAULTS = {
     target_hz: 60.0, calibration_seconds: 15.0, calibration_min_frames: 90,
     scales: { brow_height: 0.08, brow_gap: 0.10, outer_brow_height: 0.09, eye_aperture_ratio: 0.42,
-      lower_lid_raise: 0.05, lip_corner_depth: 0.06, mouth_width: 0.06 },
-    blendshape_weight: 0.5, smoothing_tau_s: 0.04,
+      lower_lid_raise: 0.05, lip_corner_depth: 0.06, mouth_width: 0.06, lip_thinning_ratio: 0.40, lip_open_gate: 0.03, lip_open_deadzone: 0.01 },
+    blendshape_weight: 0.5, smoothing_tau_s: 0.04, lip_press_tau_s: 0.10,
     blink_close_ratio: 0.45, blink_open_ratio: 0.60, blink_rate_window_s: 30.0, microsleep_ms: 500.0,
     default_blink_rate_per_min: 17.0,
     speech_window_s: 0.6, speech_aperture_std: 0.018, speech_open_delta: 0.07,
@@ -50,13 +50,13 @@
   const FEATURE_NAMES = [
     "brow_inner_h_r", "brow_inner_h_l", "brow_outer_h_r", "brow_outer_h_l", "brow_gap",
     "ear_r", "ear_l", "lower_lid_r", "lower_lid_l", "lip_corner_depth", "mouth_width",
-    "mouth_aperture", "jaw_drop",
+    "mouth_aperture", "jaw_drop", "lip_thickness",
   ];
   const BLENDSHAPE_KEYS = [
     "browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "browOuterUpRight",
-    "eyeSquintLeft", "eyeSquintRight", "eyeBlinkLeft", "eyeBlinkRight", "mouthDimpleLeft", "mouthDimpleRight",
+    "eyeSquintLeft", "eyeSquintRight", "eyeBlinkLeft", "eyeBlinkRight", "mouthDimpleLeft", "mouthDimpleRight", "mouthPressLeft", "mouthPressRight",
   ];
-  const AU_KEYS = ["au01", "au02", "au04", "au07", "au14"];
+  const AU_KEYS = ["au01", "au02", "au04", "au07", "au14", "au24"];
 
   // ------------------------------------------------------------------ helpers
   const clip01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -163,6 +163,8 @@
       mouth_width: norm(sub(p[LM.MOUTH_L], p[LM.MOUTH_R])),
       mouth_aperture: norm(sub(p[LM.LIP_LOWER_INNER], p[LM.LIP_UPPER_INNER])),
       jaw_drop: norm(sub(p[LM.CHIN], p[LM.NOSE_TIP])),
+      // visible (vermilion) thickness of both lips; pressing the lips together thins it (AU24)
+      lip_thickness: norm(sub(p[LM.LIP_UPPER_OUTER], p[LM.LIP_UPPER_INNER])) + norm(sub(p[LM.LIP_LOWER_OUTER], p[LM.LIP_LOWER_INNER])),
     };
   }
 
@@ -285,20 +287,32 @@
   // ------------------------------------------------------------------ AU regression core
   function geometricEvidence(f, base, cfg) {
     const b = base.features, s = cfg.scales, d = {};
-    for (const k of FEATURE_NAMES) d[k] = f[k] - b[k];
+    for (const k of FEATURE_NAMES) d[k] = f[k] - (k in b ? b[k] : f[k]); // older baselines lack newer features: delta 0
     const innerDrop = -(d.brow_inner_h_r + d.brow_inner_h_l) / 2;
     const gapDrop = -d.brow_gap;
     const outerRise = (d.brow_outer_h_r + d.brow_outer_h_l) / 2;
     const earBase = Math.max((b.ear_r + b.ear_l) / 2, 1e-6);
     const earDrop = 1 - (f.ear_r + f.ear_l) / 2 / earBase;
     const lidRise = -(d.lower_lid_r + d.lower_lid_l) / 2;
+    const restLip = b.lip_thickness || 0;
+    const lipThinning = restLip > 1e-6 ? 1 - f.lip_thickness / restLip : 0;
     return {
       au04: clip01((0.6 * innerDrop) / s.brow_height + (0.4 * gapDrop) / s.brow_gap),
       au01: clip01(-innerDrop / s.brow_height),
       au02: clip01(outerRise / s.outer_brow_height),
       au07: clip01((0.5 * earDrop) / s.eye_aperture_ratio + (0.5 * lidRise) / s.lower_lid_raise),
       au14: clip01((0.6 * d.lip_corner_depth) / s.lip_corner_depth + (0.4 * d.mouth_width) / s.mouth_width),
+      au24: clip01(Math.max(lipThinning, 0) / s.lip_thinning_ratio),
     };
+  }
+
+  /** 0–1 factor suppressing AU24 unless the lips are together and not stretched (see cogsense/au_engine.py). */
+  function lipPressGate(f, base, cfg) {
+    const s = cfg.scales, b = base.features;
+    let opening = Math.max(f.mouth_aperture - ("mouth_aperture" in b ? b.mouth_aperture : f.mouth_aperture), 0);
+    opening = Math.max(opening - s.lip_open_deadzone, 0); // below the dead-zone it is landmark jitter, not an opening
+    const widening = Math.max(f.mouth_width - ("mouth_width" in b ? b.mouth_width : f.mouth_width), 0);
+    return clip01(1 - opening / s.lip_open_gate) * clip01(1 - widening / s.mouth_width);
   }
 
   function bsRel(bs, base, keys) {
@@ -315,11 +329,12 @@
       au02: bsRel(bs, rb, ["browOuterUpLeft", "browOuterUpRight"]),
       au07: bsRel(bs, rb, ["eyeSquintLeft", "eyeSquintRight"]),
       au14: bsRel(bs, rb, ["mouthDimpleLeft", "mouthDimpleRight"]),
+      au24: bsRel(bs, rb, ["mouthPressLeft", "mouthPressRight"]),
     };
   }
 
   class AURegressor {
-    constructor(cfg) { this.cfg = cfg; this.ema = {}; AU_KEYS.forEach((k) => (this.ema[k] = new EMA(cfg.smoothing_tau_s))); this.heldAu7 = 0; }
+    constructor(cfg) { this.cfg = cfg; this.ema = {}; AU_KEYS.forEach((k) => (this.ema[k] = new EMA(k === "au24" ? cfg.lip_press_tau_s : cfg.smoothing_tau_s))); this.heldAu7 = 0; }
     reset() { AU_KEYS.forEach((k) => this.ema[k].reset()); }
     update(t, feats, base, blendshapes, eyesClosed, speechActive) {
       const cfg = this.cfg, ev = geometricEvidence(feats, base, cfg);
@@ -327,8 +342,9 @@
         const bev = blendshapeEvidence(blendshapes, base), w = cfg.blendshape_weight;
         for (const k of Object.keys(bev)) if (!Number.isNaN(bev[k])) ev[k] = (1 - w) * ev[k] + w * bev[k];
       }
+      ev.au24 *= lipPressGate(feats, base, cfg);
       if (eyesClosed) ev.au07 = this.heldAu7; else this.heldAu7 = ev.au07;
-      if (speechActive) ev.au14 *= cfg.speech_lower_face_attenuation;
+      if (speechActive) { ev.au14 *= cfg.speech_lower_face_attenuation; ev.au24 *= cfg.speech_lower_face_attenuation; }
       const out = {};
       AU_KEYS.forEach((k) => (out[k] = clip01(this.ema[k].update(ev[k], t))));
       return out;
@@ -521,7 +537,7 @@
         head_pose: this.pose(face, poseOk),
         action_units: {
           au04_brow_lowerer: rnd(au.au04, 3), au07_lid_tightener: rnd(au.au07, 3), au01_inner_brow_raiser: rnd(au.au01, 3),
-          au02_outer_brow_raiser: rnd(au.au02, 3), au14_dimpler: rnd(au.au14, 3), au45_blink_state: blink.closed ? 1 : 0,
+          au02_outer_brow_raiser: rnd(au.au02, 3), au14_dimpler: rnd(au.au14, 3), au24_lip_presser: rnd(au.au24, 3), au45_blink_state: blink.closed ? 1 : 0,
           au43_eyes_closed: !!blink.microsleep,
         },
         blink: { rate_per_min: blink.rate_per_min === null ? null : rnd(blink.rate_per_min, 1),

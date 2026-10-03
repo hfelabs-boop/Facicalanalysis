@@ -18,6 +18,7 @@
     ["au01_inner_brow_raiser", "AU1 Inner brow raiser"],
     ["au02_outer_brow_raiser", "AU2 Outer brow raiser"],
     ["au14_dimpler", "AU14 Dimpler"],
+    ["au24_lip_presser", "AU24 Lip presser"],
     ["au45_blink_state", "AU45 Blink"],
   ];
 
@@ -236,8 +237,11 @@
       const open = blink ? 0.6 : 9 * (1 - 0.6 * a7);
       mctx.beginPath(); mctx.ellipse(ex, ey, 18 * k, Math.max(open, 0.6) * k, 0, 0, Math.PI * 2); mctx.stroke();
     }
+    const a24 = au.au24_lip_presser || 0;
     const my = cy + 60 * k, mw = (34 + 6 * a14) * k;
-    mctx.beginPath(); mctx.moveTo(cx - mw, my - 3 * k * a14); mctx.quadraticCurveTo(cx, my + 4 * k, cx + mw, my - 3 * k * a14); mctx.stroke();
+    mctx.save(); mctx.lineWidth = 2 + 2.5 * a24; // pressed lips: a flatter, heavier mouth line
+    mctx.beginPath(); mctx.moveTo(cx - mw, my - 3 * k * a14); mctx.quadraticCurveTo(cx, my + (4 - 4 * a24) * k, cx + mw, my - 3 * k * a14); mctx.stroke();
+    mctx.restore();
   }
 
   // ---------------------------------------------------------------- gaze canvas

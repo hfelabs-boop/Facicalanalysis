@@ -4,7 +4,7 @@ Workflow (e.g. DISFA / BP4D, which must be obtained under their own licences):
 
 1. ``cogsense extract-features video.avi --subject SN001 -o SN001.csv``
    runs MediaPipe on every frame and writes pose-normalized features.
-2. Join per-frame AU labels (columns ``au01, au02, au04, au07, au14``,
+2. Join per-frame AU labels (columns ``au01, au02, au04, au07, au14, au24``,
    DISFA 0–5 intensity scale) onto those CSVs.
 3. ``cogsense validate data/*.csv --save-model au_model.json`` trains
    per-AU logistic models with leave-one-subject-out cross-validation and
@@ -25,7 +25,7 @@ import numpy as np
 
 from cogsense.features import FEATURE_NAMES
 
-LABEL_AUS = ("au01", "au02", "au04", "au07", "au14")
+LABEL_AUS = ("au01", "au02", "au04", "au07", "au14", "au24")
 
 
 def extract_video_features(video: str | Path, model_path: str | Path, subject: str, out_csv: str | Path) -> int:

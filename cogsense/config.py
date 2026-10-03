@@ -18,6 +18,9 @@ class AUScales:
     lower_lid_raise: float = 0.05
     lip_corner_depth: float = 0.06
     mouth_width: float = 0.06
+    lip_thinning_ratio: float = 0.40  # AU24: visible lips thinned by this fraction of their resting thickness = full intensity
+    lip_open_gate: float = 0.03  # AU24 fades to 0 as the inner-lip gap opens by this much (IOD) beyond baseline
+    lip_open_deadzone: float = 0.01  # ignore gap changes this small (IOD): landmark jitter, not an opening
 
 
 @dataclass
@@ -31,6 +34,7 @@ class CogSenseConfig:
     scales: AUScales = field(default_factory=AUScales)
     blendshape_weight: float = 0.5  # weight of learned blendshape evidence when available
     smoothing_tau_s: float = 0.04  # EMA time constant; short enough to keep <500 ms transients
+    lip_press_tau_s: float = 0.10  # AU24 is a sustained gesture and its geometry is small, so it is smoothed more
 
     # --- blink (AU43/45) ---
     blink_close_ratio: float = 0.45  # EAR / baseline EAR below which eyes are closed

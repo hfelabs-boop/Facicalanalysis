@@ -17,7 +17,7 @@ FEATURE_NAMES = (
     "ear_r", "ear_l",
     "lower_lid_r", "lower_lid_l",
     "lip_corner_depth", "mouth_width",
-    "mouth_aperture", "jaw_drop",
+    "mouth_aperture", "jaw_drop", "lip_thickness",
 )
 
 
@@ -61,6 +61,9 @@ def extract(p: np.ndarray) -> dict[str, float]:
         "mouth_width": float(np.linalg.norm(p[L.MOUTH_L] - p[L.MOUTH_R])),
         "mouth_aperture": float(np.linalg.norm(p[L.LIP_LOWER_INNER] - p[L.LIP_UPPER_INNER])),
         "jaw_drop": float(np.linalg.norm(p[L.CHIN] - p[L.NOSE_TIP])),
+        # Visible (vermilion) thickness of both lips; pressing the lips together thins it (AU24).
+        "lip_thickness": float(np.linalg.norm(p[L.LIP_UPPER_OUTER] - p[L.LIP_UPPER_INNER])
+                               + np.linalg.norm(p[L.LIP_LOWER_OUTER] - p[L.LIP_LOWER_INNER])),
     }
 
 

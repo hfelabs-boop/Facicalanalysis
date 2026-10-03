@@ -20,7 +20,7 @@ from cogsense.features import FEATURE_NAMES
 BLENDSHAPE_KEYS = (
     "browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "browOuterUpRight",
     "eyeSquintLeft", "eyeSquintRight", "eyeBlinkLeft", "eyeBlinkRight",
-    "mouthDimpleLeft", "mouthDimpleRight",
+    "mouthDimpleLeft", "mouthDimpleRight", "mouthPressLeft", "mouthPressRight",
 )
 
 

@@ -115,6 +115,7 @@ class ScenarioSimulator:
                         env = min(age / 0.15, 1.0) * math.exp(-max(age - 0.6, 0) / 0.4)
                         st.au4 = max(st.au4, 0.88 * env)
                         st.au14 = max(st.au14, 0.55 * env)
+                        st.au24 = max(st.au24, 0.6 * env)
                         saccade_burst = saccade_burst or age < 1.0
                     else:
                         if age < 0.4:

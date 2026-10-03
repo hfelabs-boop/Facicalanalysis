@@ -77,7 +77,7 @@ iPhone notes:
 
 | Req | Implementation |
 |---|---|
-| FR-1.1 AU scope | `au_engine.py`, `blink.py`. Geometric evidence from pose-normalized landmarks, optionally fused with MediaPipe blendshapes or a trained `LinearAUModel`. AU45 = blink state; AU43 = closure ≥ 500 ms (microsleep). |
+| FR-1.1 AU scope | `au_engine.py`, `blink.py`. Geometric evidence from pose-normalized landmarks, optionally fused with MediaPipe blendshapes or a trained `LinearAUModel`. AU45 = blink state; AU43 = closure ≥ 500 ms (microsleep). **Beyond the PRD:** AU24 lip presser (lip thinning, gated by mouth opening and smile width), a detection output not yet used in CFI. |
 | FR-1.2 0–1 floats, ≥30 Hz | All AU outputs are clipped to [0, 1]. Engine cost is ~0.3 ms/frame, so the camera rate decides throughput. |
 | FR-1.3 15 s baseline | `calibration.py` (`BaselineCalibrator`, `Baseline.save/load`, `--baseline`). |
 | FR-2.1 pose invariance | `geometry.py` builds a face frame from rigid landmarks, rotates the mesh into it and scales by IOD. Tests cover yaw ±30°, pitch ±20°, roll ±20°. Confidence decays outside that range. |
@@ -86,7 +86,7 @@ iPhone notes:
 | FR-3.1 MES | `metrics.py` (formula below). |
 | FR-3.2 CFI | `metrics.py`: a continuous index plus discrete `CFI_EVENT`s. |
 | FR-3.3 automation surprise | `metrics.py`: `AUTOMATION_SURPRISE` event and a 1 s latched flag. |
-| FR-4.1 sync bus | `clock.py` stamps every frame at capture on one monotonic clock and slews offsets to UTC and LSL. `bus.py` handles WebSocket, LSL (`CogSense_FACS` 16-ch + `CogSense_Events` markers) and JSONL. |
+| FR-4.1 sync bus | `clock.py` stamps every frame at capture on one monotonic clock and slews offsets to UTC and LSL. `bus.py` handles WebSocket, LSL (`CogSense_FACS` 17-ch + `CogSense_Events` markers) and JSONL. |
 | FR-4.2 gaze/AOI | `fusion.FusionHub`: nearest-in-time gaze (staleness 250 ms), AOI hit-test and saccade rate. |
 | FR-4.3 biomechanical correlator | `fusion.correlate`: edge-triggered `COMPOUND_POSTURE_RISK` when RULA neck ≥ 3 or trunk ≥ 3 co-occurs with AU7 ≥ 0.40 or AU4 ≥ 0.50. |
 | NFR privacy | Frames stay in memory only. Video is written **only** with `--audit-video` while recording. Session logs hold numbers only; HUD mesh points go over WebSocket and are never logged. |
@@ -137,7 +137,7 @@ The payload is a superset of PRD §6. These fields are additive: `head_pose.with
   "tracking_status": "LOCKED", "confidence": 0.94,
   "head_pose": {"yaw_deg": 4.2, "pitch_deg": -6.1, "roll_deg": 0.8, "within_operating_range": true},
   "action_units": {"au04_brow_lowerer": 0.72, "au07_lid_tightener": 0.45, "au01_inner_brow_raiser": 0.05,
-                   "au02_outer_brow_raiser": 0.02, "au14_dimpler": 0.38, "au45_blink_state": 0, "au43_eyes_closed": false},
+                   "au02_outer_brow_raiser": 0.02, "au14_dimpler": 0.38, "au24_lip_presser": 0.05, "au45_blink_state": 0, "au43_eyes_closed": false},
   "blink": {"rate_per_min": 11.0, "last_duration_ms": 160.0, "closure_ms": 0.0},
   "cognitive_metrics": {"mental_effort_score": 68.4, "cognitive_friction_index": 0.81,
                         "automation_surprise_flag": false, "speech_interference_detected": false},
@@ -199,7 +199,7 @@ cogsense bench --mediapipe     # per-frame latency: engine, CLAHE, landmarker
 
 ## Status against the acceptance criteria
 
-- **Implemented and covered by tests (108 tests):**
+- **Implemented and covered by tests (129 tests):**
   - AU extraction and pose invariance on synthetic meshes
   - calibration, speech mask, graceful fallback
   - MES / CFI / surprise logic and fusion/compound risk

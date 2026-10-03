@@ -181,6 +181,7 @@ class CogSenseEngine:
                 "au01_inner_brow_raiser": round(au.au01, 3),
                 "au02_outer_brow_raiser": round(au.au02, 3),
                 "au14_dimpler": round(au.au14, 3),
+                "au24_lip_presser": round(au.au24, 3),
                 "au45_blink_state": int(blink.closed),
                 "au43_eyes_closed": bool(blink.microsleep),
             },

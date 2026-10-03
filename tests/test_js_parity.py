@@ -56,6 +56,14 @@ def scenario():
     hold(0.5, lambda t, i: (FaceState(asym=morph, yaw=60), None))  # beyond pose range
     hold(1.0, lambda t, i: (FaceState(asym=morph, au14=0.6, mouth_open=0.5 + 0.5 * math.sin(t * 25)), None))  # speech
     hold(1.0, lambda t, i: (FaceState(asym=morph), None))
+    # lips pressed together (with and without the blendshape), a closed-lip smile, and a press while talking
+    press_bs = {"mouthPressLeft": 0.7, "mouthPressRight": 0.7}
+    hold(1.0, lambda t, i: (FaceState(asym=morph, au24=0.8), press_bs))
+    hold(0.7, lambda t, i: (FaceState(asym=morph, au24=0.5), None))
+    hold(0.8, lambda t, i: (FaceState(asym=morph, smile=1.0), {"mouthPressLeft": 0.2, "mouthPressRight": 0.2}))
+    hold(1.0, lambda t, i: (FaceState(asym=morph), None))
+    hold(1.0, lambda t, i: (FaceState(asym=morph, au24=0.8, mouth_open=0.5 + 0.5 * math.sin(t * 25)), None))
+    hold(1.0, lambda t, i: (FaceState(asym=morph), None))
     return frames
 
 
@@ -127,6 +135,7 @@ def test_events_match_and_scenario_exercises_them(runs):
     assert {"CFI_EVENT", "AUTOMATION_SURPRISE", "MICROSLEEP"} <= kinds
     assert any(p["cognitive_metrics"] and p["cognitive_metrics"]["speech_interference_detected"] for p in py)
     assert py[-1]["calibration"]["status"] == "CALIBRATED"
+    assert max(p["action_units"]["au24_lip_presser"] for p in py if p["action_units"]) > 0.6  # AU24 path exercised
     last = [p for p in py if p["fatigue"]][-1]["fatigue"]
     assert last["perclos"] is not None and last["blink_count"] > 0 and last["long_closures"] >= 1  # fatigue path exercised
 

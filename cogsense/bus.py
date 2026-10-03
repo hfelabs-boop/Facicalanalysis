@@ -38,7 +38,7 @@ except Exception:  # pragma: no cover
 LSL_CHANNELS = (
     "confidence", "yaw_deg", "pitch_deg", "roll_deg",
     "au04", "au07", "au01", "au02", "au14", "au45",
-    "mes", "cfi", "surprise", "speech", "perclos", "pupil_change_mm",
+    "mes", "cfi", "surprise", "speech", "perclos", "pupil_change_mm", "au24",
 )
 
 
@@ -58,7 +58,7 @@ def payload_to_lsl_sample(p: dict) -> list[float]:
         g(au, "au02_outer_brow_raiser"), g(au, "au14_dimpler"), g(au, "au45_blink_state"),
         g(cm, "mental_effort_score"), g(cm, "cognitive_friction_index"),
         g(cm, "automation_surprise_flag"), g(cm, "speech_interference_detected"),
-        g(fat, "perclos"), g(pup, "change_mm"),
+        g(fat, "perclos"), g(pup, "change_mm"), g(au, "au24_lip_presser"),
     ]
 
 

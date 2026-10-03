@@ -26,6 +26,7 @@
         <li><a href="#au2">AU2 outer brow raiser</a></li>
         <li><a href="#au7">AU7 lid tightener</a></li>
         <li><a href="#au14">AU14 dimpler</a></li>
+        <li><a href="#au24">AU24 lip presser</a></li>
         <li><a href="#blink">AU45 / AU43 blink</a></li>
         <li><a href="#blend">Blendshape fusion</a></li>
         <li><a href="#smooth">Smoothing</a></li>
@@ -92,7 +93,7 @@
 <ol class="steps">
   <li><b>Landmarks.</b> MediaPipe Face Landmarker returns 478 face-mesh points per frame, plus 52 learned blendshape scores.</li>
   <li><b>Normalize.</b> The mesh is rotated into a face-anchored frame and scaled by inter-ocular distance, which removes head pose and camera distance.</li>
-  <li><b>Features.</b> 13 geometric measurements are taken from the normalized mesh (brow heights, eye openness, lip-corner depth, and so on).</li>
+  <li><b>Features.</b> 14 geometric measurements are taken from the normalized mesh (brow heights, eye openness, lip-corner depth, lip thickness, and so on).</li>
   <li><b>Baseline-relative evidence.</b> Each feature is compared with the operator’s own neutral baseline and mapped to a 0–1 value per AU.</li>
   <li><b>Fusion &amp; conditioning.</b> Geometric evidence is blended with blendshape evidence; blinks and speech are masked; values are smoothed.</li>
   <li><b>Cognitive metrics.</b> AUs, blink rate, gaze and posture feed MES, CFI and the event detectors.</li>
@@ -157,6 +158,22 @@ AU7 = clip( 0.5 · earDrop / 0.42  +  0.5 · lidRise / 0.05 )</div>
 <div class="formula">AU14 = clip( 0.6 · Δlip_corner_depth / 0.06  +  0.4 · Δmouth_width / 0.06 )</div>
 <p><code>lip_corner_depth</code> is how far the mouth corners sit behind the centre of the lips. This is the weakest signal from a single camera, so it benefits most from blendshape fusion and from a trained model (see <a href="#limits">limits</a>).</p>
 
+<h3 id="au24">AU24 — Lip presser (lips pressed together)</h3>
+<p>The best-supported <i>friction</i> cue in the research (<a href="#other-table">see the evidence</a>), added as a <b>detection output</b>. It is <b>not yet part of the Cognitive Friction Index</b>: its accuracy still has to be measured against labelled data first.</p>
+<div class="formula">lip_thickness = |upper lip outer − inner| + |lower lip inner − outer|        visible lips, IOD units
+thinning      = 1 − lip_thickness / rest_thickness                           rest = median during calibration
+geometric     = clip( max(thinning, 0) / 0.40 )                              40 % thinner = full intensity
+fused         = 0.5 · geometric + 0.5 · blendshape                           mouthPressLeft/Right, resting value subtracted
+gate          = clip(1 − max(Δaperture − 0.01, 0) / 0.03) · clip(1 − max(Δwidth, 0) / 0.06)
+AU24          = smooth₀.₁₀ₛ( fused · gate ),   × 0.3 while speech or chewing is detected</div>
+<ul>
+  <li><b>Why the gate.</b> Anything that opens the mouth cannot be a lip press, and the <code>mouthPress</code> blendshape is not specific: on one real face it read 0.10–0.16 with the mouth <i>open and smiling</i>. A <b>closed-lip smile</b> also thins the lips, but it widens the mouth, so a widening beyond the AU14 scale (0.06) removes the evidence. The 0.01 dead-zone on the lip gap stops landmark jitter counting as an opening.</li>
+  <li><b>Smoothing.</b> AU24 uses a 0.10 s time constant instead of 0.04 s because it is a sustained gesture with small geometry.</li>
+  <li><b>What was checked.</b> Synthetic faces across head pose, plus look-alikes (smile, jaw drop, speech, resting blendshape). On <b>one real face mesh</b>, thinning the lips by 20 % and 40 % gave 0.25 and 0.50 from geometry alone (the blendshape supplies the other half, 0.94 when it also reports a press). The real tracker’s lip landmarks moved about 0.1 % of the inter-ocular distance on a static face under camera noise, and AU24 at rest read 0.01–0.02. Those are checks on one person, <b>not accuracy figures</b>.</li>
+  <li><b>What was not checked.</b> Accuracy against FACS-coded presses. Published detectors reach only F1 31–58 on AU23/24 (<a href="#au-accuracy">above</a>), so expect misses and false alarms. A real press only reaches full scale if the 40 % thinning matches how people press; that scale is a design choice. Hands or masks over the mouth, lip biting and pursing are not handled.</li>
+  <li>AU23 (lip tightener), which the research reports alongside AU24, is <b>not</b> implemented.</li>
+</ul>
+
 <h3 id="blink">AU45 / AU43 — Blinks and eye closure</h3>
 <div class="formula">ratio = EAR / EAR_baseline
 closed when ratio &lt; 0.45;  reopens when ratio &gt; 0.60      (hysteresis stops flicker)</div>
@@ -183,7 +200,7 @@ AU = 0.5 · geometric  +  0.5 · blendshape</div>
 <p>If a blendshape is missing for a frame, that AU uses geometry alone.</p>
 
 <h3 id="smooth">Smoothing</h3>
-<p>Each AU passes through an exponential moving average with a time constant of <b>0.04 s</b>, adjusted for the actual time between frames:</p>
+<p>Each AU passes through an exponential moving average with a time constant of <b>0.04 s</b> (AU24: 0.10 s), adjusted for the actual time between frames:</p>
 <div class="formula">α = 1 − exp(−Δt / 0.04)      value ← value + α · (target − value)</div>
 <p>This removes landmark jitter but still follows sub-500 ms transients.</p>
 </section>
@@ -434,7 +451,7 @@ halved for 2 s after a task completion</div>
 
 <section id="other-signals">
 <h2>Other facial signals and micro-gestures</h2>
-<p class="lead">Which other face-based signals the research supports, and whether this setup can measure them: an RGB camera with the MediaPipe face mesh at 30–60 Hz, plus the suite’s eye tracker. Only published findings are used. Where evidence is thin, indirect or does not apply, the table says so. <b>Implemented so far from this list: the fatigue indicators and pupil ingestion</b> (see <a href="#fatigue">Fatigue &amp; pupil</a>); the rest are recommendations.</p>
+<p class="lead">Which other face-based signals the research supports, and whether this setup can measure them: an RGB camera with the MediaPipe face mesh at 30–60 Hz, plus the suite’s eye tracker. Only published findings are used. Where evidence is thin, indirect or does not apply, the table says so. <b>Implemented so far from this list: the fatigue indicators, pupil ingestion and AU24 lip-press detection</b> (see <a href="#fatigue">Fatigue &amp; pupil</a> and <a href="#au24">AU24</a>); the rest are recommendations.</p>
 
 <h3 id="au-accuracy">First, a reality check on AU detection accuracy</h3>
 <ul>
@@ -450,8 +467,8 @@ halved for 2 s after a task completion</div>
 
 <tr><td><b>Lip tightener and lip presser</b> (AU23, AU24)</td>
 <td><a href="#ref-ihme">Ihme et al. (2018)</a>: 28 people, FACS-coded, one minute from each participant’s most- and least-frustrating simulated drive. <b>AU23: 2.0 vs 0.21 occurrences (r = .37, p &lt; .01); AU24: 4.9 vs 1.4 (r = .45, p &lt; .01)</b>, medium effects. Inter-coder agreement .85.<br><br>Limits: one minute per condition, simulated driving, occurrence counts rather than intensity, manual coding.</td>
-<td>The face model outputs <code>mouthPressLeft/Right</code> blendshapes, whose link to AU24 is by name only and unvalidated here. Even deep models detect AU23/24 poorly (F1 30–58, above).</td>
-<td><span class="badge ok">Best-supported friction cue</span><br>validate before use</td></tr>
+<td>The face model outputs <code>mouthPressLeft/Right</code> blendshapes, whose link to AU24 is by name only and unvalidated here. Even deep models detect AU23/24 poorly (F1 30–58, above). <b>AU24 is now detected</b> from lip thinning plus this blendshape (<a href="#au24">how</a>); AU23 is not.</td>
+<td><span class="badge ok">Best-supported friction cue</span><br>detected, not yet in CFI: validate first</td></tr>
 
 <tr><td><b>Non-enjoyment smile</b> (AU12 during a frustrating event)</td>
 <td><a href="#ref-hoque">Hoque, McDuff &amp; Picard (2012)</a>: in 90 % of natural-frustration cases participants smiled while reporting significant frustration; in 90 % of acted cases they did not. <b>Human judges classified the frustration smiles below chance</b>; a classifier using smile dynamics reached 92 % separating frustrated from delighted smiles. In Ihme et al., AU12 was also higher in frustration (17.5 vs 10.8; exploratory, r = .36).</td>
@@ -508,14 +525,14 @@ halved for 2 s after a task completion</div>
 <td>This camera runs at 30–60 Hz, so a 100 ms movement spans only 3–6 frames, against 200 fps in the databases. Reliable recognition at this rate is not established.</td>
 <td><span class="badge risk">Do not claim</span><br>fast AU changes here are not micro-expressions</td></tr>
 </table>
-<p class="note">The face model returns 52 blendshape scores (brows, cheeks, eyes, jaw, mouth and nose), so many other movements are available. Their correspondence to FACS action units follows naming conventions, not validation, and the module currently uses 11 of them.</p>
+<p class="note">The face model returns 52 blendshape scores (brows, cheeks, eyes, jaw, mouth and nose), so many other movements are available. Their correspondence to FACS action units follows naming conventions, not validation, and the module currently uses 13 of them.</p>
 
 <h3 id="other-priorities">What the evidence suggests, in order</h3>
 <p>These are recommendations drawn from the evidence above, not results.</p>
 <ol class="steps">
   <li><b>Pupil from the eye tracker.</b> The strongest physiological effort cue, and the suite already has the right sensor. <i>Implemented</i> as a separate stream (<a href="#pupil">how it is calculated</a>); it needs the tracker to export pupil diameter in mm, and display luminance to be sent or controlled.</li>
   <li><b>A separate fatigue indicator.</b> PERCLOS-style closure fraction and blink duration, kept <i>out of</i> the effort score. <i>Implemented</i> (<a href="#perclos">how it is calculated</a>); the fixed 500 ms eye-closure flag remains for compatibility. Lid-reopening delay and closure speed are <b>not</b> implemented: they need frame rates well above what a 30 Hz phone camera gives. The closure threshold still needs validation, and glasses and reflections limit accuracy.</li>
-  <li><b>Lip tightener/presser as an added friction cue, after validation.</b> It has the best direct evidence for frustration, but it is also hard to detect, so measure its accuracy against labelled data before it influences CFI.</li>
+  <li><b>Lip tightener/presser as an added friction cue, after validation.</b> It has the best direct evidence for frustration, but it is also hard to detect, so measure its accuracy against labelled data before it influences CFI. <i>AU24 detection is implemented</i> (<a href="#au24">how it is calculated</a>) but deliberately kept out of CFI until that validation exists; AU23 is not implemented.</li>
   <li><b>Use AU4 mainly for effort and concentration.</b> The friction evidence for AU4 and AU14 alone is mixed, so friction should rest on co-occurring cues and task context.</li>
   <li><b>Leave out</b> micro-expression detection, head movement as a load cue, and gaze aversion.</li>
 </ol>

@@ -49,3 +49,18 @@ def test_fatigue_and_pupil_docs_match_config():
     ]:
         assert frag in text, frag
     assert c.perclos_alert is None  # the docs promise there is no default alert threshold
+
+
+def test_lip_press_docs_match_config():
+    c = CogSenseConfig()
+    text = re.sub(r"\s+", " ", DOCS)
+    for frag in [
+        f"clip( max(thinning, 0) / {c.scales.lip_thinning_ratio:.2f} )",
+        f"max(Δaperture − {c.scales.lip_open_deadzone:.2f}, 0) / {c.scales.lip_open_gate:.2f}",
+        f"max(Δwidth, 0) / {c.scales.mouth_width:.2f}",
+        f"smooth₀.₁₀ₛ(",
+        f"× {c.speech_lower_face_attenuation}",
+        f"(AU24: {c.lip_press_tau_s:.2f} s)",
+    ]:
+        assert frag in text, frag
+    assert c.lip_press_tau_s == 0.10
