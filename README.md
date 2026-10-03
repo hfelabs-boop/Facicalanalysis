@@ -96,7 +96,7 @@ iPhone notes:
 
 ## Derived metrics
 
-The full step-by-step reference (every AU, MES, CFI, events, confidence, report figures, with worked examples) is the console's **Docs** page: `dashboard/docs.html`, served at `/docs`. The summary below is the short form.
+The full step-by-step reference (every AU, MES, CFI, events, confidence, report figures, with worked examples) is the console's **Docs** page: `dashboard/docs.html`, served at `/docs`. It includes a **Research evidence** section that sets each formula against published work and lists where the evidence disagrees with the defaults. The summary below is the short form.
 
 **Mental Effort Score (0–100).** The PRD left the formula blank, so this is the defined implementation:
 

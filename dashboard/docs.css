@@ -48,3 +48,17 @@ ol.steps li { margin: 4px 0; }
 @media (max-width: 480px) { .brand span { display: none; } header { padding: 10px 14px; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 @media (max-width: 800px) { .formula, pre { white-space: pre-wrap; overflow-wrap: anywhere; } }
+
+/* research evidence */
+.badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; border: 1px solid; }
+.badge.ok { color: #3fcf8e; border-color: #3fcf8e55; background: #3fcf8e14; }
+.badge.mixed { color: #f0a23b; border-color: #f0a23b55; background: #f0a23b14; }
+.badge.weak { color: #e3c14a; border-color: #e3c14a55; background: #e3c14a14; }
+.badge.risk { color: #ff7a7a; border-color: #ff7a7a55; background: #ff7a7a14; }
+.badge.design { color: #8b97a6; border-color: #8b97a688; background: #8b97a614; }
+table.evid td { min-width: 150px; }
+.gaps { border: 1px solid #5a3a1a; background: #1c1610; border-radius: 6px; padding: 4px 14px 4px 6px; max-width: 74ch; }
+.gaps li { margin: 8px 0; }
+ol.refs { padding-left: 20px; font-size: 13.5px; color: var(--muted); }
+ol.refs li { margin: 8px 0; }
+ol.refs a, td a, p a, li a { color: var(--accent); }

@@ -45,6 +45,16 @@
         <li><a href="#surprise">Automation surprise</a></li>
       </ol>
     </li>
+    <li><a href="#evidence">Research evidence</a>
+      <ol>
+        <li><a href="#evidence-mes">Effort: formula &amp; evidence</a></li>
+        <li><a href="#evidence-cfi">Friction: formula &amp; evidence</a></li>
+        <li><a href="#evidence-surprise">Automation surprise</a></li>
+        <li><a href="#evidence-gaps">Where evidence disagrees</a></li>
+        <li><a href="#evidence-validate">How to validate</a></li>
+        <li><a href="#references">References</a></li>
+      </ol>
+    </li>
     <li><a href="#fusion">Fusion &amp; insights</a>
       <ol>
         <li><a href="#aoi">Gaze &amp; AOI</a></li>
@@ -203,10 +213,11 @@ stays active for 0.4 s after the last trigger</div>
 <div class="formula">S = clip( 1 − blink_rate / resting_blink_rate )          blink-rate suppression
 e = 0.7 · AU4  +  0.3 · S                                 per-frame effort
 MES = 100 · mean(e over the last 5 s)</div>
+<p><a href="#evidence-mes">Research evidence for this formula →</a></p>
 <p>If no blink rate is available yet (first 5 s), <code>e = AU4</code>. The resting blink rate comes from calibration (or 17/min).</p>
 <div class="example"><b>Worked example.</b> AU4 held at 0.60 for 5 s, blinking 8/min against a resting 17/min:
 S = 1 − 8/17 = 0.529, e = 0.7·0.60 + 0.3·0.529 = 0.579, so <b>MES = 57.9</b>. With no blink data the same face scores 60.0.</div>
-<p class="note">A person who stops blinking entirely adds up to 30 points even with a neutral brow, which is intended: suppressed blinking is a known sign of sustained visual attention.</p>
+<p class="note">A person who stops blinking entirely adds up to 30 points even with a neutral brow. Blink suppression goes with <i>visual</i> demand, but blinking rises with non-visual mental load and fatigue, so this term is contested; see <a href="#evidence-mes">the evidence</a>.</p>
 
 <h3 id="cfi">Cognitive Friction Index (CFI, 0–1)</h3>
 <p>A continuous index that rises when a brow-lowering spike coincides with annoyance or erratic eye movement.</p>
@@ -214,6 +225,7 @@ S = 1 − 8/17 = 0.529, e = 0.7·0.60 + 0.3·0.529 = 0.579, so <b>MES = 57.9</b>
 C = max( clip(AU14 / 0.30),  clip(saccade_rate / 3 Hz) )      co-occurrence
 CFI = clip( AU4 · (0.6 + 0.4 · C)  +  0.15 · clip(rise / 0.25) )
 CFI is halved if a task completion was logged in the last 2 s</div>
+<p><a href="#evidence-cfi">Research evidence for this formula →</a></p>
 <p>So AU4 alone gives at most 0.6 of its value; AU14 or fast saccades lift that to the full AU4, and a sharp rise adds up to 0.15.</p>
 <div class="example"><b>Worked example.</b> Steady AU4 = 0.80, AU14 = 0.15 (C = 0.5), no recent rise: CFI = 0.80 · (0.6 + 0.4·0.5) = <b>0.64</b>. If the operator had just completed a task (within 2 s): <b>0.32</b>.</div>
 <p>The console and report mark moments where CFI exceeds <b>0.70</b>.</p>
@@ -233,6 +245,112 @@ CFI is halved if a task completion was logged in the last 2 s</div>
 surge:       AU4 ≥ 0.50  and rose ≥ 0.20 within 200 ms
 event:       a surge within 800 ms after a brow raise</div>
 <p>It logs <code>AUTOMATION_SURPRISE</code> once and holds <code>automation_surprise_flag</code> for 1 s. The pattern is a startle or novelty response followed by effortful re-evaluation, which can mark a human-autonomy hand-off breakdown.</p>
+</section>
+
+<section id="evidence">
+<h2>Research evidence</h2>
+<p class="lead">What published work does and does not say about the calculations above. Each source below was checked against its text or abstract; where only a secondary summary was available, the text says “as reported by”. Short version: the <b>direction</b> of the main cues is supported, the <b>exact weights, windows and thresholds are not</b>, and four defaults conflict with or go beyond the evidence (see <a href="#evidence-gaps">where the evidence disagrees</a>).</p>
+
+<table class="evid">
+<tr><th>Component</th><th>Used in</th><th>What the research supports</th><th>Status</th></tr>
+<tr><td>AU4 (brow lowering) as an effort / strain cue</td><td>MES, CFI</td><td>Corrugator activity tracks mental effort; automatically coded AU4 correlates with frustration (r = 0.41).</td><td><span class="badge ok">Supported</span> correlational</td></tr>
+<tr><td>AUs measured against a personal baseline</td><td>all</td><td>Raw automatic AU output varies across people; the cited study subtracts each person’s baseline.</td><td><span class="badge ok">Supported</span></td></tr>
+<tr><td>Blink-rate suppression as effort</td><td>MES (30 %)</td><td>Blink rate falls with <i>visual</i> demand but rises with <i>mental</i> workload and with fatigue.</td><td><span class="badge mixed">Mixed</span> depends on load type</td></tr>
+<tr><td>AU14 as a frustration marker</td><td>CFI event</td><td>Correlates with frustration (r = 0.32) <i>and</i> with learning gain; described as “mouth fidgeting”.</td><td><span class="badge weak">Weak / ambiguous</span></td></tr>
+<tr><td>Saccade rate ≥ 3 per second</td><td>CFI event</td><td>Saccade count and scanpath length index search effort, but ordinary viewing is already about 3 per second.</td><td><span class="badge risk">At risk</span> threshold too low</td></tr>
+<tr><td>Spike + co-occurring cue, task-completion gate</td><td>CFI, CFI event</td><td>Combining channels predicts frustration better than chance (79 % vs 58 %); no study validates these rules.</td><td><span class="badge design">Plausible, unvalidated</span></td></tr>
+<tr><td>Brow raise followed by AU4 surge</td><td>Automation surprise</td><td>Brow raise is the commonest surprise display component but appears in only a minority of surprised people.</td><td><span class="badge weak">Low sensitivity expected</span></td></tr>
+<tr><td>0.7 / 0.3 weights, 5 s window, all cut-offs</td><td>MES, CFI</td><td>No study fixes these values.</td><td><span class="badge design">Design choice</span></td></tr>
+<tr><td>Reading AUs as emotion</td><td>all</td><td>Facial movements do not reliably map to emotions across people and contexts.</td><td><span class="badge risk">Constraint</span> use as cues, in context</td></tr>
+</table>
+
+<h3 id="evidence-mes">Mental Effort Score: formula and evidence</h3>
+<div class="formula">MES = 100 · mean over 5 s of ( 0.7 · AU4  +  0.3 · S ),     S = clip( 1 − blink_rate / resting_blink_rate )</div>
+<table class="evid">
+<tr><th>Term</th><th>Evidence</th><th>Caveat</th></tr>
+<tr><td><b>AU4</b><br>(weight 0.7)</td>
+<td>Facial EMG over the corrugator supercilii, the muscle behind brow lowering, rises with mental effort. <a href="#ref-topolinski">Topolinski &amp; Strack (2015)</a> review this, citing van Boxtel &amp; Jessurun (1993), Waterink &amp; van Boxtel (1994) and others, and note the frontalis responds to a comparable degree.<br><br>
+On video, <a href="#ref-grafsgaard">Grafsgaard et al. (2013)</a> coded 67 students in computer-mediated tutoring with an automatic AU tool: <b>average AU4 intensity in the first five minutes correlated with end-of-session self-reported frustration (r = 0.41, p = 0.001)</b>. They read AU4 as possibly reflecting effortful thought or confusion that may turn into frustration. In AutoTutor studies by D’Mello and colleagues, summarised in the same paper, AU4 and AU7 correlated with confusion.</td>
+<td>Corrugator activity also tracks negative affect, so AU4 alone cannot separate effort from displeasure. The video result is a session-level correlation in one task, not a moment-by-moment measure.</td></tr>
+<tr><td><b>Baseline-relative AUs</b></td>
+<td>Grafsgaard et al. found raw automatic AU output “varied significantly across individuals” and adjusted it “by subtracting the baseline (average) output value by facial action unit for each student”, the same idea as the 15 s calibration.</td>
+<td>Their baseline was the student’s session average, ours is a neutral-face calibration. Not directly compared.</td></tr>
+<tr><td><b>Blink-rate suppression</b><br>(weight 0.3)</td>
+<td><a href="#ref-benedetto">Benedetto et al. (2011)</a> summarise <a href="#ref-recarte">Recarte et al. (2008)</a>: blink rate is affected by both mental workload and visual demand, “which act in opposition to each other, the former leading to BR increase, the latter to BR decrease”. They also report, citing <a href="#ref-stern94">Stern et al. (1994)</a>, that blink rate increases with time on task (fatigue), and that <b>blink duration shortens as visual workload rises</b> (citing Veltman &amp; Gaillard 1996; Ahlstrom &amp; Friedman-Berg 2006).</td>
+<td>Suppression fits visually demanding displays such as C2 consoles. It does <b>not</b> capture non-visual mental load or fatigue, where blinking increases. In our formula an increase is clipped to S = 0, so it adds nothing rather than subtracting. Benedetto et al. also stress large between-person variability in blink rate.</td></tr>
+<tr><td><b>0.7 / 0.3 weights, 5 s window</b></td><td>None found.</td><td>Engineering choices. Config: <code>mes_au4_weight</code>, <code>mes_window_s</code>. Setting <code>mes_au4_weight</code> to 1.0 removes the blink term.</td></tr>
+</table>
+
+<h3 id="evidence-cfi">Cognitive Friction Index: formula and evidence</h3>
+<div class="formula">CFI = clip( AU4 · (0.6 + 0.4 · C)  +  0.15 · clip(rise / 0.25) ),     C = max( clip(AU14 / 0.30), clip(saccade_rate / 3 Hz) )
+halved for 2 s after a task completion</div>
+<table class="evid">
+<tr><th>Term</th><th>Evidence</th><th>Caveat</th></tr>
+<tr><td><b>AU4 level and spike</b></td>
+<td>AU4 ↔ frustration, r = 0.41 (Grafsgaard et al., above). The “sharp rise” term (≥ 0.25 in 200 ms) and the 0.65 spike threshold have no direct source.</td>
+<td>Frustration is inferred from session averages in the literature; the spike rule assumes moments of friction show up as fast AU4 onsets.</td></tr>
+<tr><td><b>AU14</b></td>
+<td>In the same study average AU14 intensity in the first five minutes correlated with frustration (<b>r = 0.32, p = 0.010</b>).</td>
+<td>The authors also found AU14 frequency in the <i>last</i> five minutes correlated with <b>learning gain</b> (r = 0.52), describe it as frequent “mouth fidgeting”, note that expert judges in earlier work did not identify AU14 as a frustration indicator, and suggest it can coincide with a thoughtful state. AU14 is therefore a weak, ambiguous marker on its own.</td></tr>
+<tr><td><b>Saccade rate</b></td>
+<td><a href="#ref-goldberg">Goldberg &amp; Kotval (1999)</a> proposed eye-movement measures for interface evaluation: the number of saccades indicates the amount of search activity, and a longer scanpath can indicate less efficient search, for example from a poor layout.</td>
+<td>That supports scanning behaviour as a usability cue, <b>not a fixed 3-per-second cut-off</b>. <a href="#ref-rayner">Rayner (1998)</a> reports fixations of about 200–300 ms between saccades (mean 275 ms in visual search, 330 ms in scene perception, 225 ms in silent reading), which works out to roughly <b>3 saccades per second in ordinary viewing</b>: 2.7 to 3.9 depending on the task, from 1000 ms ÷ (mean fixation + a 30–50 ms saccade). See <a href="#evidence-gaps">gaps</a>.</td></tr>
+<tr><td><b>Co-occurrence of channels</b></td>
+<td><a href="#ref-kapoor">Kapoor, Burleson &amp; Picard (2007)</a>: with 24 participants using a learning companion, a model using multiple non-verbal channels predicted frustration at <b>79 % accuracy (chance 58 %)</b>.</td>
+<td>Shows that combining cues works moderately and that no single facial cue is enough. It does not validate our specific rule.</td></tr>
+<tr><td><b>Task-completion gate</b><br>and AOI context</td>
+<td>NASA-TLX treats <i>effort</i> and <i>frustration</i> as separate workload dimensions (<a href="#ref-hart88">Hart &amp; Staveland, 1988</a>). The gate encodes the same distinction: strain while the task progresses is effort, strain with no progress is friction.</td>
+<td>Design logic, not an empirical result. The 2 s window and ×0.5 factor are untested.</td></tr>
+</table>
+
+<h3 id="evidence-surprise">Automation surprise: evidence</h3>
+<p>The concept of <i>automation surprise</i>, an operator caught off guard by what automation does, comes from <a href="#ref-sarter">Sarter, Woods &amp; Billings (1997)</a>. Whether it shows on the face is a separate question.</p>
+<ul>
+  <li><a href="#ref-reisenzein">Reisenzein et al. (2006)</a>, eight experiments in which surprise was induced by disconfirming an expectation: <b>surprise expressions appeared in only 4–25 % of participants</b> although self-reports and behaviour showed surprise in most, most displays were brow raising alone, and the full three-component display was never seen. EMG did not find notably more brow raising.</li>
+  <li>So AU1+2 is the most likely visible component, but <b>its absence says little</b>. The detector will miss most surprises and is best read as a high-precision, low-recall flag.</li>
+  <li>The AU4 surge that follows is consistent with <a href="#ref-topolinski">Topolinski &amp; Strack (2015)</a>, who report corrugator (brow-lowering) activity as an index of immediate negative affect in surprise.</li>
+</ul>
+
+<h3 id="evidence-gaps">Where the evidence disagrees with the defaults</h3>
+<div class="gaps">
+<ol>
+  <li><b>Blink suppression is only right for visual load.</b> It under-reads non-visual mental load and fatigue (blink rate rises). The blink-duration shortening reported for visual load is better supported than blink rate and is not used yet. <i>Option:</i> lower the blink weight, or add blink duration.</li>
+  <li><b>The 3 saccades/s trigger is at the normal viewing rate.</b> The SACCADES route to a CFI event can fire during ordinary scanning. <i>Option:</i> compare with the operator’s own baseline rate during the task instead of a fixed number. The AU14 route is unaffected. Note that the built-in simulator uses about 1.25 saccades/s as “normal”, so its results do not expose this.</li>
+  <li><b>AU14 is ambiguous.</b> It tracks frustration and also concentration or fidgeting. The co-occurrence with an AU4 spike adds some specificity, but this is not tested.</li>
+  <li><b>Surprise recall is low by nature.</b> Treat <code>AUTOMATION_SURPRISE</code> events as confirmed cases, not a count of all surprises.</li>
+</ol>
+</div>
+
+<h3 id="evidence-limits">A general limit on interpretation</h3>
+<p><a href="#ref-barrett">Barrett et al. (2019)</a> reviewed the evidence on inferring emotion from facial movements and found that how people express emotions varies substantially across cultures, situations and even people within a single situation, and identified significant challenges to reliably inferring emotion from facial movements alone. They propose reliability, specificity, generalizability and validity as the tests an inference must pass. For this reason MES and CFI should be read as <b>behavioural cues relative to the same person and session, together with context</b> (AOI, task events, posture), not as readings of an inner state.</p>
+
+<h3 id="evidence-validate">How to validate against ground truth</h3>
+<p>NASA-TLX is the standard criterion: <a href="#ref-hart88">Hart &amp; Staveland (1988)</a> defined six subscales including mental demand, effort and frustration, and <a href="#ref-hart06">Hart (2006)</a> reviewed 550 studies using it. Not yet done here. A minimal protocol:</p>
+<ol class="steps">
+  <li>Record each trial with <code>cogsense run --record</code>, with conditions that differ in difficulty (a manipulation check) and a known-friction UI variant.</li>
+  <li>Collect NASA-TLX subscales after each trial.</li>
+  <li>Compare, within person, <b>mean MES vs Mental Demand and Effort</b> and <b>CFI events per minute and mean CFI vs Frustration</b> (rank correlation), and check that MES and CFI differ between the easy and hard conditions.</li>
+  <li>Refit the weights and thresholds (<code>CogSenseConfig</code>) on part of the data and report results on held-out participants.</li>
+</ol>
+
+<h3 id="references">References</h3>
+<p class="note">How each source was checked: <b>full text read</b>: Grafsgaard et al. (2013), Benedetto et al. (2011), and the relevant passages and Table 1 of Rayner (1998). <b>Abstract or publisher page read</b>: Reisenzein et al. (2006), Kapoor et al. (2007), Topolinski &amp; Strack (2015), Barrett et al. (2019), Hart &amp; Staveland (1988) and Hart (2006). <b>Secondary summaries only</b>: Goldberg &amp; Kotval (1999), whose full paper was not retrieved, and the older studies marked “cited via”. <b>Reference details only</b>: Sarter et al. (1997). Please check the primary papers before quoting them in a formal report.</p>
+<ol class="refs">
+  <li id="ref-grafsgaard">Grafsgaard, J. F., Wiggins, J. B., Boyer, K. E., Wiebe, E. N., &amp; Lester, J. C. (2013). Automatically recognizing facial indicators of frustration: a learning-centric analysis. <i>Proc. Affective Computing and Intelligent Interaction (ACII)</i>. <a href="https://intellimedia.ncsu.edu/wp-content/uploads/sites/42/grafsgaard-acii-2013.pdf">PDF</a></li>
+  <li id="ref-topolinski">Topolinski, S., &amp; Strack, F. (2015). Corrugator activity confirms immediate negative affect in surprise. <i>Frontiers in Psychology, 6</i>, 134. <a href="https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2015.00134/full">Link</a></li>
+  <li>van Boxtel, A., &amp; Jessurun, M. (1993). Amplitude and bilateral coherency of facial and jaw-elevator EMG activity as an index of effort during a two-choice serial reaction task. <i>Psychophysiology, 30</i>, 589–604. (Cited via Topolinski &amp; Strack, 2015.)</li>
+  <li id="ref-benedetto">Benedetto, S., Pedrotti, M., Minin, L., Baccino, T., Re, A., &amp; Montanari, R. (2011). Driver workload and eye blink duration. <i>Transportation Research Part F, 14</i>, 199–208. <a href="https://www.researchgate.net/publication/229385426_Driver_workload_and_eye_blink_duration">Link</a></li>
+  <li id="ref-recarte">Recarte, M. A., Pérez, E., Conchillo, A., &amp; Nunes, L. M. (2008). Mental workload and visual impairment: differences between pupil, blink, and subjective rating. <i>The Spanish Journal of Psychology, 11</i>(2), 374–385. (Cited via Benedetto et al., 2011.)</li>
+  <li id="ref-stern94">Stern, J. A., Boyer, D., &amp; Schroeder, D. (1994). Blink rate: a possible measure of fatigue. <i>Human Factors, 36</i>, 285–297. (Cited via Benedetto et al., 2011.)</li>
+  <li id="ref-goldberg">Goldberg, J. H., &amp; Kotval, X. P. (1999). Computer interface evaluation using eye movements: methods and constructs. <i>International Journal of Industrial Ergonomics, 24</i>(6), 631–645. <a href="https://www.semanticscholar.org/paper/Computer-interface-evaluation-using-eye-movements:-Goldberg-Kotval/ad0755fceba99d0697d8c1eeb9f1763cc19aa589">Link</a></li>
+  <li id="ref-rayner">Rayner, K. (1998). Eye movements in reading and information processing: 20 years of research. <i>Psychological Bulletin, 124</i>(3), 372–422. <a href="http://andrewd.ces.clemson.edu/courses/cpsc881/papers/reading/Ray98_readingSurvey.pdf">PDF</a></li>
+  <li id="ref-kapoor">Kapoor, A., Burleson, W., &amp; Picard, R. W. (2007). Automatic prediction of frustration. <i>International Journal of Human-Computer Studies, 65</i>(8), 724–736. <a href="https://asu.elsevierpure.com/en/publications/automatic-prediction-of-frustration/">Link</a></li>
+  <li id="ref-reisenzein">Reisenzein, R., Bördgen, S., Holtbernd, T., &amp; Matz, D. (2006). Evidence for strong dissociation between emotion and facial displays: the case of surprise. <i>Journal of Personality and Social Psychology, 91</i>(2), 295–315. <a href="https://pubmed.ncbi.nlm.nih.gov/16881766/">PubMed</a></li>
+  <li id="ref-sarter">Sarter, N. B., Woods, D. D., &amp; Billings, C. E. (1997). Automation surprises. In G. Salvendy (Ed.), <i>Handbook of Human Factors and Ergonomics</i> (2nd ed., pp. 1926–1943). Wiley.</li>
+  <li id="ref-barrett">Barrett, L. F., Adolphs, R., Marsella, S., Martinez, A. M., &amp; Pollak, S. D. (2019). Emotional expressions reconsidered: challenges to inferring emotion from human facial movements. <i>Psychological Science in the Public Interest, 20</i>(1), 1–68. <a href="https://www.psychologicalscience.org/publications/emotional-expressions-reconsidered-challenges-to-inferring-emotion-from-human-facial-movements.html">Link</a></li>
+  <li id="ref-hart88">Hart, S. G., &amp; Staveland, L. E. (1988). Development of NASA-TLX (Task Load Index): results of empirical and theoretical research. <i>Advances in Psychology, 52</i>, 139–183. <a href="https://www.sciencedirect.com/science/chapter/bookseries/abs/pii/S0166411508623869">Link</a></li>
+  <li id="ref-hart06">Hart, S. G. (2006). NASA-Task Load Index (NASA-TLX); 20 years later. <i>Proc. Human Factors and Ergonomics Society 50th Annual Meeting</i>. <a href="https://journals.sagepub.com/doi/10.1177/154193120605000909">Link</a></li>
+</ol>
 </section>
 
 <section id="fusion">
@@ -295,7 +413,7 @@ risk          =  posture high AND ( AU7 ≥ 0.40  OR  AU4 ≥ 0.50 )</div>
 <ul>
   <li><b>Verified by tests:</b> the maths above on synthetic faces (AU recovery across head pose, calibration, speech and blink handling, event timing) and that the browser engine matches the Python engine.</li>
   <li><b>Not yet validated:</b> accuracy against FACS-coded ground truth. The AU scales are hand-tuned. The PRD’s F1 ≥ 0.82 target on DISFA/BP4D is not yet met; the training tool (<code>cogsense validate</code>) exists, but those datasets are licensed and weren’t available.</li>
-  <li><b>MES and CFI weights</b> (0.7/0.3, 0.6/0.4, 0.15) are design choices, not fitted to operator data. Treat absolute values as relative within a person and session until they are calibrated against ground truth such as NASA-TLX.</li>
+  <li><b>MES and CFI weights</b> (0.7/0.3, 0.6/0.4, 0.15) are design choices, not fitted to operator data (see <a href="#evidence">research evidence</a> for what the literature does and does not support). Treat absolute values as relative within a person and session until they are calibrated against ground truth such as NASA-TLX.</li>
   <li><b>AU14</b> is weak from a monocular mesh; <b>occlusion</b> detection is heuristic (MediaPipe extrapolates hidden landmarks).</li>
 </ul>
 </section>
