@@ -62,3 +62,18 @@ table.evid td { min-width: 150px; }
 ol.refs { padding-left: 20px; font-size: 13.5px; color: var(--muted); }
 ol.refs li { margin: 8px 0; }
 ol.refs a, td a, p a, li a { color: var(--accent); }
+
+/* four-column evidence table: fit the column on desktop, scroll sideways on phones */
+.layout { max-width: 1240px; }
+table.evid.four { display: table; table-layout: fixed; }
+table.evid.four td, table.evid.four th { min-width: 0; overflow-wrap: anywhere; }
+table.evid.four th:nth-child(1), table.evid.four td:nth-child(1) { width: 15%; }
+table.evid.four th:nth-child(2), table.evid.four td:nth-child(2) { width: 40%; }
+table.evid.four th:nth-child(3), table.evid.four td:nth-child(3) { width: 27%; }
+table.evid.four th:nth-child(4), table.evid.four td:nth-child(4) { width: 18%; }
+table.evid.four .badge { white-space: normal; }
+@media (max-width: 800px) {
+  table.evid.four { display: block; table-layout: auto; }
+  table.evid.four td, table.evid.four th { min-width: 190px; width: auto; }
+  table.evid.four th:nth-child(1), table.evid.four td:nth-child(1) { min-width: 130px; }
+}

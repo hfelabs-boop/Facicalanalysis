@@ -55,6 +55,13 @@
         <li><a href="#references">References</a></li>
       </ol>
     </li>
+    <li><a href="#other-signals">Other facial signals</a>
+      <ol>
+        <li><a href="#au-accuracy">AU accuracy check</a></li>
+        <li><a href="#other-table">Signal by signal</a></li>
+        <li><a href="#other-priorities">What to add, in order</a></li>
+      </ol>
+    </li>
     <li><a href="#fusion">Fusion &amp; insights</a>
       <ol>
         <li><a href="#aoi">Gaze &amp; AOI</a></li>
@@ -249,14 +256,14 @@ event:       a surge within 800 ms after a brow raise</div>
 
 <section id="evidence">
 <h2>Research evidence</h2>
-<p class="lead">What published work does and does not say about the calculations above. Each source below was checked against its text or abstract; where only a secondary summary was available, the text says “as reported by”. Short version: the <b>direction</b> of the main cues is supported, the <b>exact weights, windows and thresholds are not</b>, and four defaults conflict with or go beyond the evidence (see <a href="#evidence-gaps">where the evidence disagrees</a>).</p>
+<p class="lead">What published work does and does not say about the calculations above. Each source below was checked against its text or abstract; where only a secondary summary was available, the text says “as reported by”. Short version: the <b>direction</b> of the main cues is supported, the <b>exact weights, windows and thresholds are not</b>, and five defaults conflict with or go beyond the evidence (see <a href="#evidence-gaps">where the evidence disagrees</a>).</p>
 
 <table class="evid">
 <tr><th>Component</th><th>Used in</th><th>What the research supports</th><th>Status</th></tr>
 <tr><td>AU4 (brow lowering) as an effort / strain cue</td><td>MES, CFI</td><td>Corrugator activity tracks mental effort; automatically coded AU4 correlates with frustration (r = 0.41).</td><td><span class="badge ok">Supported</span> correlational</td></tr>
 <tr><td>AUs measured against a personal baseline</td><td>all</td><td>Raw automatic AU output varies across people; the cited study subtracts each person’s baseline.</td><td><span class="badge ok">Supported</span></td></tr>
 <tr><td>Blink-rate suppression as effort</td><td>MES (30 %)</td><td>Blink rate falls with <i>visual</i> demand but rises with <i>mental</i> workload and with fatigue.</td><td><span class="badge mixed">Mixed</span> depends on load type</td></tr>
-<tr><td>AU14 as a frustration marker</td><td>CFI event</td><td>Correlates with frustration (r = 0.32) <i>and</i> with learning gain; described as “mouth fidgeting”.</td><td><span class="badge weak">Weak / ambiguous</span></td></tr>
+<tr><td>AU14 as a frustration marker</td><td>CFI event</td><td>Correlates with frustration (r = 0.32) <i>and</i> with learning gain, described as “mouth fidgeting”; not significant in an induced-frustration driving study.</td><td><span class="badge weak">Weak / ambiguous</span></td></tr>
 <tr><td>Saccade rate ≥ 3 per second</td><td>CFI event</td><td>Saccade count and scanpath length index search effort, but ordinary viewing is already about 3 per second.</td><td><span class="badge risk">At risk</span> threshold too low</td></tr>
 <tr><td>Spike + co-occurring cue, task-completion gate</td><td>CFI, CFI event</td><td>Combining channels predicts frustration better than chance (79 % vs 58 %); no study validates these rules.</td><td><span class="badge design">Plausible, unvalidated</span></td></tr>
 <tr><td>Brow raise followed by AU4 surge</td><td>Automation surprise</td><td>Brow raise is the commonest surprise display component but appears in only a minority of surprised people.</td><td><span class="badge weak">Low sensitivity expected</span></td></tr>
@@ -288,9 +295,9 @@ halved for 2 s after a task completion</div>
 <tr><th>Term</th><th>Evidence</th><th>Caveat</th></tr>
 <tr><td><b>AU4 level and spike</b></td>
 <td>AU4 ↔ frustration, r = 0.41 (Grafsgaard et al., above). The “sharp rise” term (≥ 0.25 in 200 ms) and the 0.65 spike threshold have no direct source.</td>
-<td>Frustration is inferred from session averages in the literature; the spike rule assumes moments of friction show up as fast AU4 onsets.</td></tr>
+<td>Frustration is inferred from session averages in the literature; the spike rule assumes moments of friction show up as fast AU4 onsets. <b>In an induced-frustration driving study (<a href="#ref-ihme">Ihme et al., 2018</a>, N = 28) AU4 occurred about equally in frustrated and calm minutes (36.4 vs 34.6; r = .17, not significant)</b>, and the authors suggest it may reflect the concentration driving requires. AU4 therefore fits effort better than friction.</td></tr>
 <tr><td><b>AU14</b></td>
-<td>In the same study average AU14 intensity in the first five minutes correlated with frustration (<b>r = 0.32, p = 0.010</b>).</td>
+<td>In the same study average AU14 intensity in the first five minutes correlated with frustration (<b>r = 0.32, p = 0.010</b>). In Ihme et al.’s driving study the AU14 difference was <b>not significant</b> (9.1 vs 7.8; p = .07, r = .20).</td>
 <td>The authors also found AU14 frequency in the <i>last</i> five minutes correlated with <b>learning gain</b> (r = 0.52), describe it as frequent “mouth fidgeting”, note that expert judges in earlier work did not identify AU14 as a frustration indicator, and suggest it can coincide with a thoughtful state. AU14 is therefore a weak, ambiguous marker on its own.</td></tr>
 <tr><td><b>Saccade rate</b></td>
 <td><a href="#ref-goldberg">Goldberg &amp; Kotval (1999)</a> proposed eye-movement measures for interface evaluation: the number of saccades indicates the amount of search activity, and a longer scanpath can indicate less efficient search, for example from a poor layout.</td>
@@ -317,6 +324,7 @@ halved for 2 s after a task completion</div>
   <li><b>Blink suppression is only right for visual load.</b> It under-reads non-visual mental load and fatigue (blink rate rises). The blink-duration shortening reported for visual load is better supported than blink rate and is not used yet. <i>Option:</i> lower the blink weight, or add blink duration.</li>
   <li><b>The 3 saccades/s trigger is at the normal viewing rate.</b> The SACCADES route to a CFI event can fire during ordinary scanning. <i>Option:</i> compare with the operator’s own baseline rate during the task instead of a fixed number. The AU14 route is unaffected. Note that the built-in simulator uses about 1.25 saccades/s as “normal”, so its results do not expose this.</li>
   <li><b>AU14 is ambiguous.</b> It tracks frustration and also concentration or fidgeting. The co-occurrence with an AU4 spike adds some specificity, but this is not tested.</li>
+  <li><b>AU4 does not separate friction from concentration.</b> In Ihme et al. (2018) it occurred equally in frustrated and calm minutes, and the lip tightener and presser (AU23/24) were the AUs that differed. CFI leans on AU4 for up to 0.6 of its value. <i>Option:</i> require a lower-face or contextual cue before CFI rises. See <a href="#other-signals">other facial signals</a>.</li>
   <li><b>Surprise recall is low by nature.</b> Treat <code>AUTOMATION_SURPRISE</code> events as confirmed cases, not a count of all surprises.</li>
 </ol>
 </div>
@@ -334,7 +342,7 @@ halved for 2 s after a task completion</div>
 </ol>
 
 <h3 id="references">References</h3>
-<p class="note">How each source was checked: <b>full text read</b>: Grafsgaard et al. (2013), Benedetto et al. (2011), and the relevant passages and Table 1 of Rayner (1998). <b>Abstract or publisher page read</b>: Reisenzein et al. (2006), Kapoor et al. (2007), Topolinski &amp; Strack (2015), Barrett et al. (2019), Hart &amp; Staveland (1988) and Hart (2006). <b>Secondary summaries only</b>: Goldberg &amp; Kotval (1999), whose full paper was not retrieved, and the older studies marked “cited via”. <b>Reference details only</b>: Sarter et al. (1997). Please check the primary papers before quoting them in a formal report.</p>
+<p class="note">How each source was checked: <b>full text or tables read</b>: Grafsgaard et al. (2013), Benedetto et al. (2011), the relevant passages and Table 1 of Rayner (1998), Ihme et al. (2018), the BP4D/DISFA tables in Jin et al. (2024) and the results of Hinduja et al. (2024). <b>Abstract or publisher page read</b>: Reisenzein et al. (2006), Kapoor et al. (2007), Hoque et al. (2012), Topolinski &amp; Strack (2015), Barrett et al. (2019), Hart &amp; Staveland (1988), Hart (2006), the PERCLOS review, Schleicher et al. (2008), Yan et al. (2013, 2014), Porter &amp; ten Brinke (2008), Burgoon (2018) and the micro-expression leakage study. <b>Secondary summaries only</b>: Goldberg &amp; Kotval (1999), whose full paper was not retrieved, Beatty &amp; Lucero-Wagoner (2000), Siegenthaler et al. (2014), Doherty-Sneddon &amp; Phelps (2005), McDuff et al. (2014), Abdelrahman et al. (2017), the pupillometry study, the head-movement studies, the DISFA label list, and the older studies marked “cited via”. <b>Reference details only</b>: Sarter et al. (1997). Please check the primary papers before quoting them in a formal report.</p>
 <ol class="refs">
   <li id="ref-grafsgaard">Grafsgaard, J. F., Wiggins, J. B., Boyer, K. E., Wiebe, E. N., &amp; Lester, J. C. (2013). Automatically recognizing facial indicators of frustration: a learning-centric analysis. <i>Proc. Affective Computing and Intelligent Interaction (ACII)</i>. <a href="https://intellimedia.ncsu.edu/wp-content/uploads/sites/42/grafsgaard-acii-2013.pdf">PDF</a></li>
   <li id="ref-topolinski">Topolinski, S., &amp; Strack, F. (2015). Corrugator activity confirms immediate negative affect in surprise. <i>Frontiers in Psychology, 6</i>, 134. <a href="https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2015.00134/full">Link</a></li>
@@ -350,6 +358,114 @@ halved for 2 s after a task completion</div>
   <li id="ref-barrett">Barrett, L. F., Adolphs, R., Marsella, S., Martinez, A. M., &amp; Pollak, S. D. (2019). Emotional expressions reconsidered: challenges to inferring emotion from human facial movements. <i>Psychological Science in the Public Interest, 20</i>(1), 1–68. <a href="https://www.psychologicalscience.org/publications/emotional-expressions-reconsidered-challenges-to-inferring-emotion-from-human-facial-movements.html">Link</a></li>
   <li id="ref-hart88">Hart, S. G., &amp; Staveland, L. E. (1988). Development of NASA-TLX (Task Load Index): results of empirical and theoretical research. <i>Advances in Psychology, 52</i>, 139–183. <a href="https://www.sciencedirect.com/science/chapter/bookseries/abs/pii/S0166411508623869">Link</a></li>
   <li id="ref-hart06">Hart, S. G. (2006). NASA-Task Load Index (NASA-TLX); 20 years later. <i>Proc. Human Factors and Ergonomics Society 50th Annual Meeting</i>. <a href="https://journals.sagepub.com/doi/10.1177/154193120605000909">Link</a></li>
+  <li id="ref-ihme">Ihme, K., Dömeland, C., Freese, M., &amp; Jipp, M. (2018). Frustration in the face of the driver: a simulator study on facial muscle activity during frustrated driving. <i>Interaction Studies</i>. doi:10.1075/is.17005.ihm. <a href="https://elib.dlr.de/100708/1/Ihme_InteractionStudies_accepted_20170713.pdf">Accepted manuscript</a></li>
+  <li id="ref-hoque">Hoque, M. E., McDuff, D. J., &amp; Picard, R. W. (2012). Exploring temporal patterns in classifying frustrated and delighted smiles. <i>IEEE Transactions on Affective Computing, 3</i>. <a href="https://www.media.mit.edu/publications/exploring-temporal-patterns-in-classifying-frustrated-and-delighted-smiles/">Abstract</a></li>
+  <li id="ref-jin">Jin, Q., et al. (2024). AU-vMAE: knowledge-guide action units detection via video masked autoencoder. arXiv:2407.11468. (Comparison tables for BP4D and DISFA.) <a href="https://arxiv.org/abs/2407.11468">arXiv</a></li>
+  <li id="ref-hinduja">Hinduja, S., et al. (2024). Time to retire F1-binary score for action unit detection. <i>Pattern Recognition Letters, 182</i>, 111–117. doi:10.1016/j.patrec.2024.04.016. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11290352/">PMC</a></li>
+  <li>Mavadati, S. M., et al. DISFA: a spontaneous facial action intensity database. (AU list as reported in secondary summaries.) <a href="https://www.researchgate.net/publication/248703363_DISFA_A_Spontaneous_Facial_Action_Intensity_Database">Link</a></li>
+  <li id="ref-perclos">PERCLOS-based technologies for detecting drowsiness: current evidence and future directions (2023). <i>Sleep Advances, 4</i>(1), zpad006. Cites Wierwille et al. (1994) and Dinges et al. (1998). <a href="https://academic.oup.com/sleepadvances/article/4/1/zpad006/7000589">Link</a></li>
+  <li id="ref-schleicher">Schleicher, R., Galley, N., Briest, S., &amp; Galley, L. (2008). Blinks and saccades as indicators of fatigue in sleepiness warnings: looking tired? <i>Ergonomics</i>. doi:10.1080/00140130701817062. <a href="https://pubmed.ncbi.nlm.nih.gov/18568959/">PubMed</a></li>
+  <li id="ref-beatty">Beatty, J., &amp; Lucero-Wagoner, B. (2000). The pupillary system. In <i>Handbook of Psychophysiology</i> (2nd ed., pp. 142–162). <a href="https://www.researchgate.net/publication/232569562_The_pupillary_system">Link</a></li>
+  <li id="ref-farred">Racially fair pupillometry measurements for RGB smartphone cameras using the far red spectrum (2023). <i>Scientific Reports</i>. <a href="https://www.nature.com/articles/s41598-023-40796-0">Link</a></li>
+  <li id="ref-siegenthaler">Siegenthaler, E., et al. (2014). Task difficulty in mental arithmetic affects microsaccadic rates and magnitudes. <i>European Journal of Neuroscience, 39</i>(2), 287–294. <a href="https://onlinelibrary.wiley.com/doi/10.1111/ejn.12395">Link</a></li>
+  <li id="ref-doherty">Doherty-Sneddon, G., &amp; Phelps, F. G. (2005). Gaze aversion: a response to cognitive or social difficulty? <i>Memory &amp; Cognition, 33</i>, 727–733. <a href="https://link.springer.com/article/10.3758/BF03195338">Link</a></li>
+  <li id="ref-mcduff">McDuff, D., Gontarek, S., &amp; Picard, R. W. (2014). Remote measurement of cognitive stress via heart rate variability. <i>36th Annual International Conference of the IEEE EMBS</i>. <a href="https://www.semanticscholar.org/paper/Remote-measurement-of-cognitive-stress-via-heart-McDuff-Gontarek/e3d239712654e3d38cb0532fd748892b4a78d604">Link</a></li>
+  <li id="ref-abdelrahman">Abdelrahman, Y., Velloso, E., Dingler, T., Schmidt, A., &amp; Vetere, F. (2017). Cognitive heat: exploring the usage of thermal imaging to unobtrusively estimate cognitive load. <i>Proc. ACM IMWUT</i>. doi:10.1145/3130898. <a href="https://epub.ub.uni-muenchen.de/68284/">Link</a></li>
+  <li id="ref-yan13">Yan, W.-J., Wu, Q., Liang, J., Chen, Y.-H., &amp; Fu, X. (2013). How fast are the leaked facial expressions: the duration of micro-expressions. <i>Journal of Nonverbal Behavior</i>. doi:10.1007/s10919-013-0159-8. <a href="https://link.springer.com/article/10.1007/s10919-013-0159-8">Link</a></li>
+  <li id="ref-porter">Porter, S., &amp; ten Brinke, L. (2008). Reading between the lies: identifying concealed and falsified emotions in universal facial expressions. <i>Psychological Science</i>. <a href="https://journals.sagepub.com/doi/abs/10.1111/j.1467-9280.2008.02116.x">Link</a></li>
+  <li id="ref-casme">Yan, W.-J., et al. (2014). CASME II: an improved spontaneous micro-expression database and the baseline evaluation. <i>PLoS ONE, 9</i>(1), e86041. <a href="https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0086041">Link</a></li>
+  <li id="ref-leak">Data leakage and evaluation issues in micro-expression analysis (2022). arXiv:2211.11425. <a href="https://arxiv.org/abs/2211.11425">arXiv</a></li>
+  <li id="ref-burgoon">Burgoon, J. K. (2018). Microexpressions are not the best way to catch a liar. <i>Frontiers in Psychology, 9</i>, 1672. <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6158306/">Link</a></li>
+  <li>Head-movement results seen as summaries only: “Atomic head movement analysis for wearable four-dimensional task load recognition” (<a href="https://pubmed.ncbi.nlm.nih.gov/30668486/">PubMed 30668486</a>) and “Higher cognitive load interferes with head-hand coordination: virtual reality-based study” (<a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC10582046/">PMC10582046</a>).</li>
+</ol>
+</section>
+
+<section id="other-signals">
+<h2>Other facial signals and micro-gestures</h2>
+<p class="lead">Which other face-based signals the research supports, and whether this setup can measure them: an RGB camera with the MediaPipe face mesh at 30–60 Hz, plus the suite’s eye tracker. Only published findings are used. Where evidence is thin, indirect or does not apply, the table says so. <b>Nothing in this section is implemented yet.</b></p>
+
+<h3 id="au-accuracy">First, a reality check on AU detection accuracy</h3>
+<ul>
+  <li><b>Which AUs the benchmark datasets label.</b> BP4D labels AU1, 2, 4, 6, 7, 10, 12, 14, 15, 17, 23 and 24. DISFA labels 12 AUs (1, 2, 4, 5, 6, 9, 12, 15, 17, 20, 25, 26) and is usually scored on 8 of them. So <b>AU7 and AU14 appear only in BP4D, and AU45 (blink) in neither</b>, which means blink detection needs its own validation, for example against manually coded blinks.</li>
+  <li><b>What published detectors reach.</b> In the comparison table of <a href="#ref-jin">Jin et al. (2024)</a>, nine deep-learning methods score (frame-based F1, subject-exclusive 3-fold) <b>AU4 43.0–61.0, AU7 67.0–80.8, AU14 54.1–69.4, AU1 36.4–64.5, AU2 35.2–57.4, AU23 31.7–50.9 and AU24 30.0–58.2 on BP4D</b>, and AU4 37.4–80.2 on DISFA. <b>No method in that table reaches 0.82 on any of AU1, AU2, AU4, AU7, AU14, AU23 or AU24.</b></li>
+  <li><b>F1 is not like-for-like.</b> <a href="#ref-hinduja">Hinduja et al. (2024)</a> found F1-binary correlates strongly with how often an AU occurs (0.907 on BP4D, 0.76 on BP4D+, 0.843 on DISFA), so scores differ by AU and dataset partly because of prevalence.</li>
+  <li><b>Implication.</b> The PRD’s F1 ≥ 0.82 acceptance target is above every published number for these AUs, and this module’s geometric mapping is simpler than those models. Treat AU values as <b>relative, within-person</b> indicators. Note also that the best-supported frustration cues below (AU23/AU24) are among the <i>hardest</i> AUs to detect.</li>
+</ul>
+
+<h3 id="other-table">Signal by signal</h3>
+<table class="evid four">
+<tr><th>Signal</th><th>What the research shows</th><th>Measurable with this setup?</th><th>Verdict</th></tr>
+
+<tr><td><b>Lip tightener and lip presser</b> (AU23, AU24)</td>
+<td><a href="#ref-ihme">Ihme et al. (2018)</a>: 28 people, FACS-coded, one minute from each participant’s most- and least-frustrating simulated drive. <b>AU23: 2.0 vs 0.21 occurrences (r = .37, p &lt; .01); AU24: 4.9 vs 1.4 (r = .45, p &lt; .01)</b>, medium effects. Inter-coder agreement .85.<br><br>Limits: one minute per condition, simulated driving, occurrence counts rather than intensity, manual coding.</td>
+<td>The face model outputs <code>mouthPressLeft/Right</code> blendshapes, whose link to AU24 is by name only and unvalidated here. Even deep models detect AU23/24 poorly (F1 30–58, above).</td>
+<td><span class="badge ok">Best-supported friction cue</span><br>validate before use</td></tr>
+
+<tr><td><b>Non-enjoyment smile</b> (AU12 during a frustrating event)</td>
+<td><a href="#ref-hoque">Hoque, McDuff &amp; Picard (2012)</a>: in 90 % of natural-frustration cases participants smiled while reporting significant frustration; in 90 % of acted cases they did not. <b>Human judges classified the frustration smiles below chance</b>; a classifier using smile dynamics reached 92 % separating frustrated from delighted smiles. In Ihme et al., AU12 was also higher in frustration (17.5 vs 10.8; exploratory, r = .36).</td>
+<td><code>mouthSmileLeft/Right</code> blendshapes. Smile size alone cannot separate delight from frustration. The 92 % result relied on dynamics.</td>
+<td><span class="badge risk">Ambiguous</span><br>a smile is not evidence of delight; no single-frame use</td></tr>
+
+<tr><td><b>AU17, AU20, AU10</b> (chin raiser, lip stretcher, upper-lip raiser)</td>
+<td>Ihme et al.: higher in frustrated driving (r = .36, .39, .29), but these were <b>exploratory</b> comparisons beyond the four AUs the authors had hypothesised.</td>
+<td>Partly (<code>mouthStretch</code>, <code>mouthUpperUp</code>, <code>mouthShrug</code> blendshapes); mapping unvalidated.</td>
+<td><span class="badge design">Hypothesis only</span></td></tr>
+
+<tr><td><b>AU4 and AU14 as <i>frustration-specific</i> cues</b></td>
+<td><b>Mixed.</b> Grafsgaard et al. found session-level correlations with frustration (r = .41, .32). In Ihme et al.’s induced-frustration drives, <b>AU4 occurred about equally often in frustrated and calm minutes (36.4 vs 34.6; p = .09, r = .17) and AU14 differences were not significant (9.1 vs 7.8; p = .07, r = .20)</b>. The authors suggest AU4 may reflect the concentration driving needs.</td>
+<td>Yes (already measured).</td>
+<td><span class="badge mixed">Mixed</span><br>AU4 fits effort better than friction</td></tr>
+
+<tr><td><b>Eyelid closure and blink dynamics for fatigue</b> (PERCLOS, blink duration, lid reopening delay, closure speed)</td>
+<td>PERCLOS is the percentage of time the eyes are more than 80 % closed. <a href="#ref-perclos">A 2023 review</a> reports it was the most accurate measure of lapses among those compared in sleep-deprivation work (Dinges et al., 1998), <b>but was not affected by drowsiness manipulation in moderate drowsiness, older adults and aviation tasks</b>, and alone may miss inattention. <a href="#ref-schleicher">Schleicher et al. (2008)</a>: blink duration, delay of lid reopening, blink interval and standardised lid-closure speed were the best indicators of sleepiness. Benedetto et al. (2011): long blinks increase with time on task.</td>
+<td>Yes in principle: eye openness comes from the mesh and blink duration is already computed. The review lists camera limits: frame rate for fast blinks, glasses, reflections. Definitions vary (2–120 Hz sampling, 20–30 % open threshold), so a threshold needs choosing and validating.</td>
+<td><span class="badge ok">Supported for fatigue</span><br>not for effort</td></tr>
+
+<tr><td><b>Pupil size</b> (task-evoked pupillary response)</td>
+<td><a href="#ref-beatty">Beatty &amp; Lucero-Wagoner (2000)</a>: pupil dilation reliably tracks cognitive load across memory, arithmetic, comprehension and vigilance tasks; the response is small (usually under 0.5 mm) and returns within seconds.</td>
+<td><b>Not from a plain RGB camera.</b> In visible light the pupil is hard to separate from a dark iris. <a href="#ref-farred">A 2023 study</a> reached 2.4 % relative error (N = 12) only with a custom LED-and-filter smartphone attachment, and could give only relative changes. An infrared eye tracker can; pupil also responds to light, so display luminance must be controlled (standard physiology, not separately cited here).</td>
+<td><span class="badge ok">Strong, but wrong sensor</span><br>take it from the eye tracker</td></tr>
+
+<tr><td><b>Microsaccade rate</b></td>
+<td><a href="#ref-siegenthaler">Siegenthaler et al. (2014)</a>: microsaccade rates fell and magnitudes rose with mental-arithmetic difficulty.</td>
+<td>No. Needs a high-speed eye tracker.</td>
+<td><span class="badge design">Out of scope</span></td></tr>
+
+<tr><td><b>Head movement and pose</b></td>
+<td>Indirect only: a wearable-IMU study reported about 70 % accuracy classifying task-load levels, and a VR study found higher cognitive load interferes with head–hand coordination (seen as abstracts and summaries). I found no verified webcam-based result.</td>
+<td>Head pose is already estimated.</td>
+<td><span class="badge weak">Insufficient evidence</span><br>keep as quality / ergonomic input</td></tr>
+
+<tr><td><b>Gaze aversion</b></td>
+<td><a href="#ref-doherty">Doherty-Sneddon &amp; Phelps (2005)</a>: adults and children avert gaze more when questions are difficult, studied in face-to-face question and answer.</td>
+<td>Needs gaze, and there is no conversation partner in screen work.</td>
+<td><span class="badge design">Not applicable</span></td></tr>
+
+<tr><td><b>Pulse and HRV from face video</b> (rPPG)</td>
+<td><a href="#ref-mcduff">McDuff, Gontarek &amp; Picard (2014)</a>: 10 participants filmed with a five-band camera at up to 3 m; a classifier using heart rate, breathing rate and HRV separated cognitive stress with 85 % accuracy (35 points above chance).</td>
+<td>The study used a specialised camera. I did not verify the result on an ordinary RGB webcam.</td>
+<td><span class="badge design">Unproven for this setup</span></td></tr>
+
+<tr><td><b>Facial temperature</b></td>
+<td><a href="#ref-abdelrahman">Abdelrahman et al. (2017)</a>: nose and forehead temperature, from a thermal camera, changes with cognitive load over seconds.</td>
+<td>No. Needs a thermal camera.</td>
+<td><span class="badge design">Out of scope</span></td></tr>
+
+<tr><td><b>Micro-expressions</b></td>
+<td><a href="#ref-yan13">Yan et al. (2013)</a>: leaked expressions last under 500 ms in total, with onset under 260 ms (109 selected from over 1,000 elicited). <a href="#ref-porter">Porter &amp; ten Brinke (2008)</a>, scoring 1/30 s frames: <b>micro-expressions (1/25–1/5 s) appeared in 21.95 % of participants and in 2 % of all expressions</b>. The CASME II database was filmed at <b>200 fps</b>, and its baseline reached 63.4 % on five classes (<a href="#ref-casme">Yan et al., 2014</a>). <a href="#ref-leak">A 2022 study</a> found that fixing data leakage in the field “can drastically reduce model performance, in some cases even making the models perform similarly to a random classifier”. <a href="#ref-burgoon">Burgoon (2018)</a> argues microexpressions are not the best way to catch a liar.</td>
+<td>This camera runs at 30–60 Hz, so a 100 ms movement spans only 3–6 frames, against 200 fps in the databases. Reliable recognition at this rate is not established.</td>
+<td><span class="badge risk">Do not claim</span><br>fast AU changes here are not micro-expressions</td></tr>
+</table>
+<p class="note">The face model returns 52 blendshape scores (brows, cheeks, eyes, jaw, mouth and nose), so many other movements are available. Their correspondence to FACS action units follows naming conventions, not validation, and the module currently uses 11 of them.</p>
+
+<h3 id="other-priorities">What the evidence suggests, in order</h3>
+<p>These are recommendations drawn from the evidence above, not results.</p>
+<ol class="steps">
+  <li><b>Pupil from the eye tracker.</b> The strongest physiological effort cue, and the suite already has the right sensor. Needs the tracker to export pupil diameter, plus luminance control.</li>
+  <li><b>A separate fatigue indicator.</b> Replace the fixed 500 ms eye-closure flag with PERCLOS-style closure fraction, blink duration and lid-reopening delay, kept <i>out of</i> the effort score. Validate the closure threshold, and check glasses and frame-rate limits.</li>
+  <li><b>Lip tightener/presser as an added friction cue, after validation.</b> It has the best direct evidence for frustration, but it is also hard to detect, so measure its accuracy against labelled data before it influences CFI.</li>
+  <li><b>Use AU4 mainly for effort and concentration.</b> The friction evidence for AU4 and AU14 alone is mixed, so friction should rest on co-occurring cues and task context.</li>
+  <li><b>Leave out</b> micro-expression detection, head movement as a load cue, and gaze aversion.</li>
 </ol>
 </section>
 
