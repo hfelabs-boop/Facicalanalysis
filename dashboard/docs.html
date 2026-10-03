@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e13">
+<title>CogSense metric reference</title>
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header>
+  <a class="brand" href="./">COGSENSE <span>METRIC REFERENCE</span></a>
+  <a class="back" href="./">← Console</a>
+</header>
+
+<div class="layout">
+<nav aria-label="Contents">
+  <ol>
+    <li><a href="#pipeline">Pipeline overview</a></li>
+    <li><a href="#units">Units &amp; normalization</a></li>
+    <li><a href="#calibration">Baseline calibration</a></li>
+    <li><a href="#aus">Action units</a>
+      <ol>
+        <li><a href="#au4">AU4 brow lowerer</a></li>
+        <li><a href="#au1">AU1 inner brow raiser</a></li>
+        <li><a href="#au2">AU2 outer brow raiser</a></li>
+        <li><a href="#au7">AU7 lid tightener</a></li>
+        <li><a href="#au14">AU14 dimpler</a></li>
+        <li><a href="#blink">AU45 / AU43 blink</a></li>
+        <li><a href="#blend">Blendshape fusion</a></li>
+        <li><a href="#smooth">Smoothing</a></li>
+      </ol>
+    </li>
+    <li><a href="#conditioning">Signal conditioning</a>
+      <ol>
+        <li><a href="#speech">Speech &amp; chewing mask</a></li>
+        <li><a href="#confidence">Tracking confidence</a></li>
+      </ol>
+    </li>
+    <li><a href="#derived">Cognitive metrics</a>
+      <ol>
+        <li><a href="#mes">Mental Effort Score</a></li>
+        <li><a href="#cfi">Cognitive Friction Index</a></li>
+        <li><a href="#cfi-event">CFI event</a></li>
+        <li><a href="#surprise">Automation surprise</a></li>
+      </ol>
+    </li>
+    <li><a href="#fusion">Fusion &amp; insights</a>
+      <ol>
+        <li><a href="#aoi">Gaze &amp; AOI</a></li>
+        <li><a href="#compound">Posture risk</a></li>
+        <li><a href="#insight">Correlated insight</a></li>
+      </ol>
+    </li>
+    <li><a href="#report">Report figures</a></li>
+    <li><a href="#timing">Timing &amp; sync</a></li>
+    <li><a href="#limits">What is and isn’t validated</a></li>
+    <li><a href="#tuning">Tuning thresholds</a></li>
+  </ol>
+</nav>
+
+<main>
+<h1>How each metric is calculated</h1>
+<p class="lead">Every number on the console comes from the steps below. Constants are the defaults in <code>CogSenseConfig</code> (<code>cogsense/config.py</code>). The browser/phone engine (<code>dashboard/engine.js</code>) is a port of the Python engine and gives the same results; a parity test checks this frame by frame.</p>
+
+<section id="pipeline">
+<h2>Pipeline overview</h2>
+<ol class="steps">
+  <li><b>Landmarks.</b> MediaPipe Face Landmarker returns 478 face-mesh points per frame, plus 52 learned blendshape scores.</li>
+  <li><b>Normalize.</b> The mesh is rotated into a face-anchored frame and scaled by inter-ocular distance, which removes head pose and camera distance.</li>
+  <li><b>Features.</b> 13 geometric measurements are taken from the normalized mesh (brow heights, eye openness, lip-corner depth, and so on).</li>
+  <li><b>Baseline-relative evidence.</b> Each feature is compared with the operator’s own neutral baseline and mapped to a 0–1 value per AU.</li>
+  <li><b>Fusion &amp; conditioning.</b> Geometric evidence is blended with blendshape evidence; blinks and speech are masked; values are smoothed.</li>
+  <li><b>Cognitive metrics.</b> AUs, blink rate, gaze and posture feed MES, CFI and the event detectors.</li>
+</ol>
+</section>
+
+<section id="units">
+<h2>Units &amp; normalization</h2>
+<p>Landmarks arrive as <code>(x/W, y/H, z/W)</code>. They are converted to pixels, then expressed in a face frame:</p>
+<ul>
+  <li><b>x axis</b> runs from the subject’s right eye to the left eye (average of the outer corners, inner corners and the face sides).</li>
+  <li><b>y axis</b> runs from forehead to chin, made perpendicular to x.</li>
+  <li><b>z axis</b> is the cross product (pointing away from the camera).</li>
+  <li><b>Origin</b> is the nose bridge (landmark 168).</li>
+  <li><b>Scale</b> is the inter-ocular distance (IOD): the distance between the two eye centres.</li>
+</ul>
+<p>All distances below are in <b>IOD units</b>. A brow shift of <code>0.08</code> means 8 % of the eye-to-eye distance, whatever the face size or camera distance. Head pose comes from the same frame:</p>
+<div class="formula">yaw = atan2(R₀₂, R₂₂)   pitch = asin(−R₁₂)   roll = atan2(R₁₀, R₁₁)</div>
+<p class="note">Because every feature is measured in this frame, rotating the head within ±30° yaw, ±20° pitch or ±20° roll does not change the features (the tests check this).</p>
+</section>
+
+<section id="calibration">
+<h2>Baseline calibration</h2>
+<p>AUs measure <i>change from this person’s neutral face</i>, not absolute shape. That absorbs resting brow height, natural asymmetry and habitual squint.</p>
+<table>
+<tr><th>Stage</th><th>What happens</th></tr>
+<tr><td><b>Provisional</b></td><td>Until a calibration is run, the median of the first <b>30 confident frames</b> (confidence ≥ 0.6) is used, for both features and resting blendshape scores. Status shows <code>PROVISIONAL</code>.</td></tr>
+<tr><td><b>15 s calibration</b></td><td>The operator holds a relaxed neutral face for <b>15 s</b>. A frame is used only if confidence ≥ 0.6, speech is not detected and the eyes are open. At least <b>90</b> usable frames are needed. The baseline is the <b>median</b> of each feature and each of 11 blendshapes (median resists stray blinks and twitches).</td></tr>
+<tr><td><b>Resting blink rate</b></td><td>Blinks counted during calibration ÷ elapsed minutes, if at least 2 blinks were seen. Otherwise a default of <b>17 blinks/min</b> is used.</td></tr>
+</table>
+</section>
+
+<section id="aus">
+<h2>Action units</h2>
+<p>Each AU starts as a clipped 0–1 <b>geometric evidence</b> value. Let <code>Δfeature = current − baseline</code>, and <code>clip(x)</code> limit <code>x</code> to 0…1. The divisors are the <i>scales</i> in config: the displacement that counts as full intensity.</p>
+
+<h3 id="au4">AU4 — Brow lowerer</h3>
+<p>Primary measure of mental workload and strain.</p>
+<div class="formula">innerDrop = −(Δbrow_inner_h_right + Δbrow_inner_h_left) / 2
+gapDrop   = −Δbrow_gap
+AU4 = clip( 0.6 · innerDrop / 0.08  +  0.4 · gapDrop / 0.10 )</div>
+<p><code>brow_inner_h</code> is the height of the inner brow above the eye-corner line; <code>brow_gap</code> is the horizontal distance between the two inner brows. Lowering the brows <i>and</i> drawing them together both raise AU4.</p>
+
+<h3 id="au1">AU1 — Inner brow raiser</h3>
+<div class="formula">AU1 = clip( −innerDrop / 0.08 )    (the inner brow rising above baseline)</div>
+
+<h3 id="au2">AU2 — Outer brow raiser</h3>
+<div class="formula">outerRise = (Δbrow_outer_h_right + Δbrow_outer_h_left) / 2
+AU2 = clip( outerRise / 0.09 )</div>
+<p>AU1 and AU2 are reported separately; the automation-surprise detector uses their average.</p>
+
+<h3 id="au7">AU7 — Lid tightener</h3>
+<p>Visual-search effort, fine discrimination, glare.</p>
+<div class="formula">EAR = (|p2−p6| + |p3−p5|) / (2·|p1−p4|)             eye aspect ratio, averaged over both eyes
+earDrop = 1 − EAR / EAR_baseline
+lidRise = −(Δlower_lid_right + Δlower_lid_left) / 2    lower lid moving up
+AU7 = clip( 0.5 · earDrop / 0.42  +  0.5 · lidRise / 0.05 )</div>
+<p>While a blink is in progress the eye aperture collapses, so AU7 is <b>held at its pre-blink value</b> rather than reported as lid tightening.</p>
+
+<h3 id="au14">AU14 — Dimpler</h3>
+<p>Frustration or annoyance (tightened lip corners).</p>
+<div class="formula">AU14 = clip( 0.6 · Δlip_corner_depth / 0.06  +  0.4 · Δmouth_width / 0.06 )</div>
+<p><code>lip_corner_depth</code> is how far the mouth corners sit behind the centre of the lips. This is the weakest signal from a single camera, so it benefits most from blendshape fusion and from a trained model (see <a href="#limits">limits</a>).</p>
+
+<h3 id="blink">AU45 / AU43 — Blinks and eye closure</h3>
+<div class="formula">ratio = EAR / EAR_baseline
+closed when ratio &lt; 0.45;  reopens when ratio &gt; 0.60      (hysteresis stops flicker)</div>
+<table>
+<tr><th>Output</th><th>Definition</th></tr>
+<tr><td><code>au45_blink_state</code></td><td>1 while the eyes are closed, else 0.</td></tr>
+<tr><td><code>blink.last_duration_ms</code></td><td>Time from closure to reopening of the latest blink.</td></tr>
+<tr><td><code>blink.rate_per_min</code></td><td>Closures in the last <b>30 s</b> × 60 ÷ observed seconds. Shown only after 5 s of data.</td></tr>
+<tr><td><code>au43_eyes_closed</code></td><td>True once one closure lasts <b>≥ 500 ms</b> (micro-sleep / fatigue). A <code>MICROSLEEP</code> event is logged once.</td></tr>
+</table>
+
+<h3 id="blend">Blendshape fusion</h3>
+<p>MediaPipe also outputs learned blendshape scores. Each is made baseline-relative, then averaged with the geometric evidence:</p>
+<div class="formula">rel = clip( (score − resting) / (1 − resting) )
+AU = 0.5 · geometric  +  0.5 · blendshape</div>
+<table>
+<tr><th>AU</th><th>Blendshapes used</th></tr>
+<tr><td>AU4</td><td><code>browDownLeft</code>, <code>browDownRight</code></td></tr>
+<tr><td>AU1</td><td><code>browInnerUp</code></td></tr>
+<tr><td>AU2</td><td><code>browOuterUpLeft</code>, <code>browOuterUpRight</code></td></tr>
+<tr><td>AU7</td><td><code>eyeSquintLeft</code>, <code>eyeSquintRight</code></td></tr>
+<tr><td>AU14</td><td><code>mouthDimpleLeft</code>, <code>mouthDimpleRight</code></td></tr>
+</table>
+<p>If a blendshape is missing for a frame, that AU uses geometry alone.</p>
+
+<h3 id="smooth">Smoothing</h3>
+<p>Each AU passes through an exponential moving average with a time constant of <b>0.04 s</b>, adjusted for the actual time between frames:</p>
+<div class="formula">α = 1 − exp(−Δt / 0.04)      value ← value + α · (target − value)</div>
+<p>This removes landmark jitter but still follows sub-500 ms transients.</p>
+</section>
+
+<section id="conditioning">
+<h2>Signal conditioning</h2>
+
+<h3 id="speech">Speech &amp; chewing mask</h3>
+<p>Talking and chewing move the lower face rhythmically. The detector watches two signals over a <b>0.6 s</b> window: inner-lip aperture and chin-to-nose distance.</p>
+<div class="formula">std = max( stdev(aperture), stdev(jaw_drop) )
+active = std &gt; 0.018   OR   ( mouth-open amount &gt; 0.07 AND std &gt; 0.009 )
+stays active for 0.4 s after the last trigger</div>
+<p>When active, <code>speech_interference_detected</code> is true, AU14 is multiplied by <b>0.3</b> and confidence by <b>0.85</b>. Speech frames are also excluded from calibration.</p>
+
+<h3 id="confidence">Tracking confidence</h3>
+<p>Confidence starts at 1 and is multiplied by a factor for each problem:</p>
+<table>
+<tr><th>Condition</th><th>Factor</th></tr>
+<tr><td>Head pose beyond ±30° yaw, ±20° pitch, ±20° roll</td><td>Falls linearly to 0 over 20° beyond each limit (one factor per axis)</td></tr>
+<tr><td>Face small in frame (IOD under 50 px)</td><td>IOD ÷ 50</td></tr>
+<tr><td>Landmark jitter between frames</td><td><code>1 − (mean point motion − 0.08) / 0.25</code>, clipped to 0–1</td></tr>
+<tr><td>Brows below the eyes (impossible geometry, e.g. hand over face)</td><td>× 0.3</td></tr>
+<tr><td>One eye far more closed than the other while not blinking</td><td>× 0.5</td></tr>
+<tr><td>Frame too dark or too bright (mean luminance outside 25–235)</td><td>× 0.6</td></tr>
+<tr><td>Speech detected</td><td>× 0.85</td></tr>
+</table>
+<table>
+<tr><th>Confidence</th><th>Status</th><th>Output</th></tr>
+<tr><td>≥ 0.6</td><td><code>LOCKED</code></td><td>Full metrics</td></tr>
+<tr><td>0.3 – 0.6</td><td><code>DEGRADED</code></td><td>Full metrics, flagged as less reliable</td></tr>
+<tr><td>&lt; 0.3, or no face</td><td><code>LOST</code></td><td>AUs and cognitive metrics are <b>null</b>. Old values are never repeated.</td></tr>
+<tr><td>Before the first 30 confident frames</td><td><code>ACQUIRING</code></td><td>Metrics withheld</td></tr>
+</table>
+</section>
+
+<section id="derived">
+<h2>Cognitive metrics</h2>
+
+<h3 id="mes">Mental Effort Score (MES, 0–100)</h3>
+<p>The PRD names the inputs (sustained AU4 and blink-rate suppression) but leaves the formula blank, so this is the implemented definition.</p>
+<div class="formula">S = clip( 1 − blink_rate / resting_blink_rate )          blink-rate suppression
+e = 0.7 · AU4  +  0.3 · S                                 per-frame effort
+MES = 100 · mean(e over the last 5 s)</div>
+<p>If no blink rate is available yet (first 5 s), <code>e = AU4</code>. The resting blink rate comes from calibration (or 17/min).</p>
+<div class="example"><b>Worked example.</b> AU4 held at 0.60 for 5 s, blinking 8/min against a resting 17/min:
+S = 1 − 8/17 = 0.529, e = 0.7·0.60 + 0.3·0.529 = 0.579, so <b>MES = 57.9</b>. With no blink data the same face scores 60.0.</div>
+<p class="note">A person who stops blinking entirely adds up to 30 points even with a neutral brow, which is intended: suppressed blinking is a known sign of sustained visual attention.</p>
+
+<h3 id="cfi">Cognitive Friction Index (CFI, 0–1)</h3>
+<p>A continuous index that rises when a brow-lowering spike coincides with annoyance or erratic eye movement.</p>
+<div class="formula">rise = AU4 − (lowest AU4 in the last 200 ms)
+C = max( clip(AU14 / 0.30),  clip(saccade_rate / 3 Hz) )      co-occurrence
+CFI = clip( AU4 · (0.6 + 0.4 · C)  +  0.15 · clip(rise / 0.25) )
+CFI is halved if a task completion was logged in the last 2 s</div>
+<p>So AU4 alone gives at most 0.6 of its value; AU14 or fast saccades lift that to the full AU4, and a sharp rise adds up to 0.15.</p>
+<div class="example"><b>Worked example.</b> Steady AU4 = 0.80, AU14 = 0.15 (C = 0.5), no recent rise: CFI = 0.80 · (0.6 + 0.4·0.5) = <b>0.64</b>. If the operator had just completed a task (within 2 s): <b>0.32</b>.</div>
+<p>The console and report mark moments where CFI exceeds <b>0.70</b>.</p>
+
+<h3 id="cfi-event">CFI event (discrete)</h3>
+<p>A <code>CFI_EVENT</code> is logged when <b>all</b> hold:</p>
+<ol>
+  <li><b>AU4 spike:</b> AU4 &gt; 0.65 and it rose by ≥ 0.25 within 200 ms.</li>
+  <li><b>Co-occurrence</b> (within 300 ms of the spike): AU14 ≥ 0.30 <i>or</i> saccade rate ≥ 3 per second.</li>
+  <li><b>No task completion</b> in the previous 2 s (the effort was productive, not friction).</li>
+  <li>At least <b>1 s</b> since the previous CFI event.</li>
+</ol>
+<p>The event records the peak CFI, which trigger fired (<code>AU14</code> or <code>SACCADES</code>) and the active AOI.</p>
+
+<h3 id="surprise">Automation surprise</h3>
+<div class="formula">brow raise:  (AU1 + AU2) / 2 &gt; 0.50
+surge:       AU4 ≥ 0.50  and rose ≥ 0.20 within 200 ms
+event:       a surge within 800 ms after a brow raise</div>
+<p>It logs <code>AUTOMATION_SURPRISE</code> once and holds <code>automation_surprise_flag</code> for 1 s. The pattern is a startle or novelty response followed by effortful re-evaluation, which can mark a human-autonomy hand-off breakdown.</p>
+</section>
+
+<section id="fusion">
+<h2>Fusion &amp; insights</h2>
+
+<h3 id="aoi">Gaze &amp; AOI</h3>
+<ul>
+  <li>Each face frame is matched to the <b>nearest gaze sample within 250 ms</b>; older gaze is ignored, so a stale AOI is never reported.</li>
+  <li>The active AOI is the rectangle containing the gaze point; if rectangles overlap, the one listed last (drawn on top) wins.</li>
+  <li><code>saccade_rate_hz</code> counts samples flagged as saccades in the last 1 s.</li>
+  <li>RULA scores use the nearest sample within 2 s.</li>
+</ul>
+
+<h3 id="compound">Compound posture risk</h3>
+<div class="formula">posture high  =  RULA neck ≥ 3  OR  RULA trunk ≥ 3
+risk          =  posture high AND ( AU7 ≥ 0.40  OR  AU4 ≥ 0.50 )</div>
+<p>A <code>COMPOUND_POSTURE_RISK</code> event is logged once when the condition starts, and again only after it has been clear for 1 s. A sustained condition therefore logs one event, not one per frame.</p>
+
+<h3 id="insight">Correlated insight</h3>
+<p>One label per frame, chosen by the first rule that matches:</p>
+<ol class="steps">
+  <li><code>FATIGUE_MICROSLEEP_RISK</code>: eyes closed ≥ 500 ms</li>
+  <li><code>AUTOMATION_SURPRISE</code>: surprise flag is on</li>
+  <li><code>POSTURE_DRIVEN_VISUAL_COMPENSATION</code>: posture high and AU7 ≥ 0.40</li>
+  <li><code>HIGH_COGNITIVE_STRAIN_ON_COMPLEX_WIDGET</code>: CFI ≥ 0.70 while looking at an AOI</li>
+  <li><code>HIGH_COGNITIVE_FRICTION</code>: CFI ≥ 0.70, no AOI</li>
+  <li><code>VISUAL_STRAIN_DISPLAY_LEGIBILITY</code>: AU7 ≥ 0.40 with acceptable posture (suspect glare or low-contrast text, not posture)</li>
+  <li><code>POSTURAL_LOAD_WITH_COGNITIVE_STRAIN</code>: posture high and AU4 ≥ 0.50</li>
+  <li><code>SUSTAINED_MENTAL_EFFORT</code>: MES ≥ 60</li>
+  <li><code>null</code>: nothing notable</li>
+</ol>
+</section>
+
+<section id="report">
+<h2>Report figures</h2>
+<p>Produced by <code>cogsense report</code> from a recorded session.</p>
+<table>
+<tr><th>Figure</th><th>Calculation</th></tr>
+<tr><td>Mean / peak MES per phase</td><td>Mean and maximum of MES over tracked frames in each mission phase. Frames with no face are excluded.</td></tr>
+<tr><td>Tracking availability</td><td>Frames with metrics ÷ all frames in the phase.</td></tr>
+<tr><td>Cumulative friction per AOI</td><td>Σ (CFI × frame duration) while gazing at that AOI, in CFI-seconds. Frame duration is capped at 0.5 s so dropouts don’t inflate it. The top 5 are listed.</td></tr>
+<tr><td>Mean CFI while fixated</td><td>Cumulative friction ÷ dwell time on the AOI.</td></tr>
+<tr><td>Friction markers</td><td>Number of times CFI crosses above 0.70 while on that AOI.</td></tr>
+<tr><td>Posture × visual strain table</td><td>Seconds spent in each cell: RULA neck score (1, 2, 3, 4+, N/A) against AU7 bin (&lt; 0.20, 0.20–0.40, ≥ 0.40).</td></tr>
+</table>
+</section>
+
+<section id="timing">
+<h2>Timing &amp; sync</h2>
+<ul>
+  <li>Every frame is stamped <b>at capture</b> on one monotonic clock, so processing delay never becomes drift between streams.</li>
+  <li>UTC and LSL timestamps are derived by offsets that are re-checked every 10 s and <b>slewed (at most 0.5 ms per check), never stepped</b>, so time stays monotonic.</li>
+  <li>Each live payload carries <code>clock_drift_ms</code>, the current gap between derived UTC and the system clock, and <code>processing_ms</code> for the engine. Camera mode also reports <code>inference_ms</code> for the face tracker.</li>
+  <li>Inbound gaze, RULA and UI events may carry their own timestamp (<code>t_utc_ms</code> or <code>t_lsl</code>); they are matched by time, not arrival order.</li>
+</ul>
+</section>
+
+<section id="limits">
+<h2>What is and isn’t validated</h2>
+<ul>
+  <li><b>Verified by tests:</b> the maths above on synthetic faces (AU recovery across head pose, calibration, speech and blink handling, event timing) and that the browser engine matches the Python engine.</li>
+  <li><b>Not yet validated:</b> accuracy against FACS-coded ground truth. The AU scales are hand-tuned. The PRD’s F1 ≥ 0.82 target on DISFA/BP4D is not yet met; the training tool (<code>cogsense validate</code>) exists, but those datasets are licensed and weren’t available.</li>
+  <li><b>MES and CFI weights</b> (0.7/0.3, 0.6/0.4, 0.15) are design choices, not fitted to operator data. Treat absolute values as relative within a person and session until they are calibrated against ground truth such as NASA-TLX.</li>
+  <li><b>AU14</b> is weak from a monocular mesh; <b>occlusion</b> detection is heuristic (MediaPipe extrapolates hidden landmarks).</li>
+</ul>
+</section>
+
+<section id="tuning">
+<h2>Tuning thresholds</h2>
+<p>Every constant on this page lives in <code>CogSenseConfig</code>. Override any of them with a JSON file:</p>
+<pre>{ "cfi_au4_threshold": 0.60, "mes_au4_weight": 0.8, "scales": { "brow_height": 0.07 } }
+
+cogsense run --config overrides.json</pre>
+<p>The browser engine accepts the same keys: <code>new CogSense.CogSenseEngine({ cfi_au4_threshold: 0.60 })</code>.</p>
+</section>
+</main>
+</div>
+</body>
+</html>

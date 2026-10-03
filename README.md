@@ -96,6 +96,8 @@ iPhone notes:
 
 ## Derived metrics
 
+The full step-by-step reference (every AU, MES, CFI, events, confidence, report figures, with worked examples) is the console's **Docs** page: `dashboard/docs.html`, served at `/docs`. The summary below is the short form.
+
 **Mental Effort Score (0–100).** The PRD left the formula blank, so this is the defined implementation:
 
 ```
@@ -194,12 +196,13 @@ cogsense bench --mediapipe     # per-frame latency: engine, CLAHE, landmarker
 
 ## Status against the acceptance criteria
 
-- **Implemented and covered by tests (86 tests):**
+- **Implemented and covered by tests (88 tests):**
   - AU extraction and pose invariance on synthetic meshes
   - calibration, speech mask, graceful fallback
   - MES / CFI / surprise logic and fusion/compound risk
   - WebSocket round-trip, LSL outlet, clock slewing
   - report and PDF export
+  - metric reference page (`dashboard/docs.html`) kept in step with the config constants
   - browser/Node engine parity with the Python engine, frame by frame
   - zero-video-retention behaviour
 - **Measured in a 4-core CPU container, with no GPU and no real face:**
