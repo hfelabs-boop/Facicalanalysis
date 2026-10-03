@@ -4,6 +4,7 @@
 
   const SCREEN_W = 1920, SCREEN_H = 1080;
   const MAX_BUFFER = 250000;
+  const MAX_BUFFER_CAMERA = 27000; // ~15 min at 30 fps; keeps an iPhone tab well inside its memory budget
   let aois = [
     { name: "TACTICAL_RADAR_WIDGET_PRIMARY", x: 40, y: 60, w: 1100, h: 700 },
     { name: "TRACK_TABLE", x: 1180, y: 60, w: 700, h: 420 },
@@ -71,8 +72,9 @@
       state.recording = p.recording;
     }
     state.buffer.push(p);
-    if (state.buffer.length > MAX_BUFFER) {
-      state.buffer.splice(0, state.buffer.length - MAX_BUFFER);
+    const cap = state.mode === "camera" ? MAX_BUFFER_CAMERA : MAX_BUFFER;
+    if (state.buffer.length > cap) {
+      state.buffer.splice(0, state.buffer.length - cap);
       state.events = state.events.filter((e) => e.ms >= state.buffer[0].timestamp_utc_ms);
     }
     for (const ev of p.events || []) addEvent(ev, p);
@@ -152,7 +154,11 @@
     $("insight").textContent = fc.correlated_insight || (au ? "No correlated finding" : `Tracking unavailable (${p.tracking_loss_reason || p.tracking_status}) — metrics withheld`);
 
     drawFace(p);
-    drawGaze();
+    if (state.mode !== "camera") drawGaze();
+    const perf = $("perf");
+    perf.hidden = state.mode !== "camera" || p.inference_ms == null;
+    if (!perf.hidden) perf.textContent = `${p.inference_ms.toFixed(0)} ms track · ${p.processing_ms.toFixed(1)} ms engine · ${state.cam ? state.cam.delegate : ""}`;
+    updateCamOverlay(p);
     $("rec").textContent = state.recording && state.recStart ? `REC ${hms((Date.now() - state.recStart) / 1000)}` : "REC --:--:--";
     $("rec").classList.toggle("recording", state.recording);
     $("record").textContent = state.recording ? "Stop rec" : "Record";
@@ -161,11 +167,32 @@
 
   // ---------------------------------------------------------------- face canvas
   const mesh = $("mesh"), mctx = mesh.getContext("2d");
+  function syncCameraCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.round(mesh.clientWidth * dpr), h = Math.round(mesh.clientHeight * dpr);
+    if (w && h && (mesh.width !== w || mesh.height !== h)) { mesh.width = w; mesh.height = h; }
+    return dpr;
+  }
+
+  function drawCameraMesh(p, W, H) {
+    const pts = state.lastMesh, v = state.cam && state.cam.video;
+    if (!pts || !v || !v.videoWidth) return;
+    const vw = v.videoWidth, vh = v.videoHeight, sc = Math.min(W / vw, H / vh);
+    const ox = (W - vw * sc) / 2, oy = (H - vh * sc) / 2;
+    mctx.fillStyle = p.tracking_status === "LOCKED" ? "#3fcf8ecc" : p.tracking_status === "DEGRADED" ? "#f0a23bcc" : "#ff5d5dcc";
+    for (let i = 0; i < pts.length; i++) mctx.fillRect(ox + (1 - pts[i][0]) * vw * sc - 0.8, oy + pts[i][1] * vh * sc - 0.8, 1.6, 1.6); // mirrored like the preview
+  }
+
   function drawFace(p) {
-    const W = mesh.width, H = mesh.height;
+    const cam = state.mode === "camera";
+    const k = cam ? syncCameraCanvas() : 1;
+    mctx.setTransform(k, 0, 0, k, 0, 0);
+    const W = mesh.width / k, H = mesh.height / k;
     mctx.clearRect(0, 0, W, H);
     const au = p.action_units;
-    if (state.mode === "live" && state.lastMesh && au) {
+    if (cam) {
+      drawCameraMesh(p, W, H);
+    } else if (state.mode === "live" && state.lastMesh && au) {
       const pts = state.lastMesh;
       let minx = 1, maxx = 0, miny = 1, maxy = 0;
       for (const [x, y] of pts) { minx = Math.min(minx, x); maxx = Math.max(maxx, x); miny = Math.min(miny, y); maxy = Math.max(maxy, y); }
@@ -379,17 +406,29 @@
 
   // ---------------------------------------------------------------- modes & playback
   function setMode(mode) {
+    const prev = state.mode;
+    if (prev === "camera" && mode !== "camera") stopCamera();
     state.mode = mode;
+    document.body.dataset.mode = mode;
     $("modeLive").classList.toggle("on", mode === "live");
+    $("modeCamera").classList.toggle("on", mode === "camera");
     $("modePlayback").classList.toggle("on", mode === "playback");
     $("playbackBar").hidden = mode !== "playback";
+    $("cameraBar").hidden = mode !== "camera";
+    const stage = mesh.parentElement;
+    stage.classList.toggle("cam", mode === "camera");
+    $("cameraVideo").hidden = mode !== "camera" || !state.cam || !state.cam.running;
+    if (mode === "camera") { state.follow = true; if (prev !== "camera") resetBuffer(); }
+    else { mesh.width = 480; mesh.height = 300; state.lastMesh = null; $("camOverlay").hidden = true; $("perf").hidden = true; }
     for (const el of [$("operatorVideo"), $("screenVideo")]) el.hidden = mode !== "playback" || !el.src;
-    if (mode === "live") { stopPlay(); resetBuffer(); state.follow = true; }
+    if (mode === "live") { stopPlay(); if (prev !== "live") resetBuffer(); state.follow = true; }
+    if (mode === "playback") { if (prev !== "playback") resetBuffer(); }
   }
   function resetBuffer() {
     state.buffer = []; state.events = []; state.cursor = -1; $("findings").innerHTML = ""; state.dirtyTimeline = true;
   }
   $("modeLive").onclick = () => setMode("live");
+  $("modeCamera").onclick = () => setMode("camera");
   $("modePlayback").onclick = () => setMode("playback");
 
   $("fileSession").addEventListener("change", async (e) => {
@@ -461,8 +500,61 @@
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `cogsense-session-${new Date().toISOString().replace(/[:.]/g, "-")}.jsonl`;
+    document.body.appendChild(a); // Safari needs the link in the DOM
     a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
   };
+
+  // ---------------------------------------------------------------- on-device camera (iPhone / webcam)
+  state.cam = null;
+  const camStatus = (msg, isErr) => { const el = $("camStatus"); el.textContent = msg; el.classList.toggle("err", !!isErr); };
+  function camButtons(running) {
+    $("camStart").disabled = running; $("camStart").textContent = running ? "Camera on" : "Start camera";
+    $("camCalibrate").disabled = !running; $("camStop").disabled = !running;
+  }
+  function stopCamera() {
+    if (state.cam) { state.cam.stop(); }
+    $("cameraVideo").hidden = true; $("camOverlay").hidden = true;
+    camButtons(false);
+  }
+  function onCamStatus(status, detail) {
+    switch (status) {
+      case "requesting-camera": camStatus("Requesting camera… tap Allow when prompted."); break;
+      case "loading-model": camStatus("Loading face tracker (first run downloads ~14 MB)…"); break;
+      case "running": camStatus(`Running on-device (${detail}). Tap Calibrate and hold a relaxed neutral face for 15 s.`); break;
+      case "interrupted": camStatus(detail, true); stopCamera(); break;
+      case "error": camStatus(detail, true); break;
+      case "warn": console.warn("camera:", detail); break;
+    }
+  }
+  $("camStart").onclick = async () => {
+    const sup = window.CogSenseCamera.support();
+    if (!sup.ok) { camStatus(sup.message, true); return; }
+    $("camStart").disabled = true;
+    // Reuse the controller so engine config survives; a new session resets engine state inside start().
+    state.cam = new window.CogSenseCamera({
+      video: $("cameraVideo"), onStatus: onCamStatus,
+      onPayload: (payload, lm) => { state.lastMesh = lm; ingest(payload); },
+    });
+    $("cameraVideo").hidden = false;
+    resetBuffer();
+    try { await state.cam.start(); camButtons(true); }
+    catch (_) { $("cameraVideo").hidden = true; camButtons(false); }
+  };
+  $("camStop").onclick = () => { stopCamera(); camStatus("Camera stopped. Your session is still on screen. Use Export to save it."); };
+  $("camCalibrate").onclick = () => { if (state.cam && state.cam.running) state.cam.calibrate(); };
+
+  let calibratedFlash = 0;
+  function updateCamOverlay(p) {
+    const el = $("camOverlay");
+    if (state.mode !== "camera") { el.hidden = true; return; }
+    const cal = p.calibration, tracking = p.action_units != null;
+    let text = "", cls = "";
+    if (cal && cal.status === "CALIBRATING") { text = `Calibrating — relax your face, look at the screen (${Math.round(cal.progress * 100)}%)`; cls = "calibrating"; calibratedFlash = 0; }
+    else if (!tracking) { text = p.tracking_status === "ACQUIRING" ? "Finding your face…" : "Face not found — centre your face and hold still"; cls = "lost"; }
+    else if (cal && cal.status === "CALIBRATED" && calibratedFlash < 90) { calibratedFlash++; text = "Calibrated ✓"; }
+    el.textContent = text; el.className = cls; el.hidden = !text;
+  }
 
   // ---------------------------------------------------------------- render loop
   let lastTl = 0;
@@ -476,5 +568,11 @@
 
   const params = new URLSearchParams(location.search);
   if (params.get("ws")) $("wsUrl").value = params.get("ws");
-  if (params.get("autoconnect") !== "0") connect();
+  const touch = window.matchMedia("(pointer: coarse)").matches || /iPhone|iPad|Android/i.test(navigator.userAgent);
+  const startMode = params.get("mode") || (touch ? "camera" : "live");
+  document.body.dataset.mode = "live";
+  if (startMode !== "live") setMode(startMode);
+  if (startMode === "live" && params.get("autoconnect") !== "0") connect();
+
+  window.CogSenseApp = { state, setMode }; // debugging / automated tests
 })();

@@ -15,7 +15,7 @@ import numpy as np
 from cogsense import landmarks as L
 from cogsense.au_engine import AURegressor, LinearAUModel
 from cogsense.blink import BlinkDetector
-from cogsense.calibration import Baseline, BaselineCalibrator, CalibrationState
+from cogsense.calibration import BLENDSHAPE_KEYS, Baseline, BaselineCalibrator, CalibrationState
 from cogsense.config import CogSenseConfig
 from cogsense.features import FEATURE_NAMES, extract
 from cogsense.filters import clip01
@@ -57,6 +57,7 @@ class CogSenseEngine:
         self.metrics = CognitiveMetrics(self.cfg)
         self.calibrator = BaselineCalibrator(self.cfg.calibration_seconds, self.cfg.calibration_min_frames)
         self._provisional: list[np.ndarray] = []
+        self._provisional_bs: list[dict[str, float]] = []
         self._prev_points: np.ndarray | None = None
         self._compound = CompoundRiskTracker()
         self.last_payload: dict | None = None
@@ -111,10 +112,16 @@ class CogSenseEngine:
         if self.baseline is None:
             if conf >= cfg.locked_confidence:
                 self._provisional.append(np.array([feats[k] for k in FEATURE_NAMES]))
+                if obs.blendshapes:
+                    self._provisional_bs.append(obs.blendshapes)
             if len(self._provisional) >= PROVISIONAL_FRAMES:
                 med = np.median(np.vstack(self._provisional), axis=0)
+                # Resting blendshape values matter too: without them a face that rests with lowered
+                # brows would read as AU4 until the 15 s calibration is run.
+                bs = {k: float(np.median([b[k] for b in self._provisional_bs if k in b]))
+                      for k in BLENDSHAPE_KEYS if any(k in b for b in self._provisional_bs)}
                 self.baseline = Baseline({k: float(v) for k, v in zip(FEATURE_NAMES, med)},
-                                         blendshapes={}, is_default=True, frames=len(self._provisional))
+                                         blendshapes=bs, is_default=True, frames=len(self._provisional))
             else:
                 payload = self._lost_payload(obs, utc_ms, "ACQUIRING", face=face, conf=conf)
                 return self._finish(payload, t0)

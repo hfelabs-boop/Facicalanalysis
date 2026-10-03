@@ -73,3 +73,20 @@ def test_blendshape_evidence_is_fused():
     for i in range(40, 70):
         p = eng.process(FaceObservation(i / 60, lm, 1920, 1080, i, blendshapes={"browDownLeft": 0.7, "browDownRight": 0.7}))
     assert p["action_units"]["au04_brow_lowerer"] == pytest.approx(0.7, abs=0.05)
+
+
+def test_provisional_baseline_includes_resting_blendshapes():
+    """A face that rests with lowered brows must read ~0 AU4 before any 15 s calibration."""
+    from cogsense.config import CogSenseConfig
+    from cogsense.engine import CogSenseEngine, FaceObservation
+    from cogsense.synthetic import render
+
+    eng = CogSenseEngine(CogSenseConfig(blendshape_weight=0.5))
+    lm = render(FaceState())
+    rest = {"browDownLeft": 0.8, "browDownRight": 0.8}
+    for i in range(60):
+        p = eng.process(FaceObservation(i / 60, lm, 1920, 1080, i, blendshapes=rest))
+    assert p["action_units"]["au04_brow_lowerer"] < 0.05
+    for i in range(60, 90):
+        p = eng.process(FaceObservation(i / 60, lm, 1920, 1080, i, blendshapes={"browDownLeft": 1.0, "browDownRight": 1.0}))
+    assert p["action_units"]["au04_brow_lowerer"] > 0.05  # still responds to a real change

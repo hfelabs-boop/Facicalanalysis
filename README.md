@@ -44,6 +44,28 @@ cogsense report sessions/demo.jsonl --pdf reports/demo.pdf --csv reports/demo/
 
 On a headless Linux host, MediaPipe needs the EGL/GLES runtime: `apt-get install libegl1 libgles2`.
 
+## iPhone / phone camera
+
+Open the deployed console (or any https host serving `dashboard/`) in **Safari on the iPhone**. On phones it opens in **Camera** mode.
+
+1. Tap **Start camera** and allow camera access. The front camera is used.
+2. Wait for the face tracker to load. The first run downloads about 14 MB, then it is cached.
+3. Tap **Calibrate (15 s)** and hold a relaxed, neutral face. The status reads `CALIBRATED ✓` when finished.
+4. The HUD shows the mesh, AU bars, MES and CFI live. Use **Export buffer (.jsonl)** at the end, then run `cogsense report` for the dossier.
+
+How it works: `dashboard/camera.js` runs the MediaPipe Face Landmarker (WASM) in the browser. `dashboard/engine.js` is a line-for-line port of the Python engine, checked frame by frame against it by `tests/test_js_parity.py`. **Video never leaves the phone.** Nothing is uploaded or stored, and only derived numbers are held in memory until you export.
+
+iPhone notes:
+
+- **iOS 16.4 or newer, in Safari.** Camera access needs https. Plain `http://<laptop-ip>` pages are blocked by iOS, which is why this runs on-device instead of streaming to the Python service.
+- **Open the link in Safari itself.** In-app browsers (Instagram, Facebook, etc.) block the camera, and the page says so.
+- **Permission denied?** Tap *aA* in the address bar → Website Settings → Camera → Allow, then reload.
+- **Keep the page in the foreground.** iOS stops the camera when Safari is backgrounded, and the page asks you to tap Start camera again. The screen is kept awake while running.
+- **Phone mounted at arm's length, face centred.** Keep the face inside ±30° yaw and ±20° pitch, as for any camera.
+- **Self-host the runtime** for closed networks: serve MediaPipe's `vision_bundle.mjs` plus `wasm/` and the model yourself, then open the page with `?mp=<base-url>&model=<url>`.
+- **No eye tracker or RULA on a phone.** Gaze/AOI/posture fusion needs the workstation service. The phone gives you AUs, MES, CFI, blink and surprise events.
+- **Mac or Windows with the iPhone as a webcam (Continuity Camera and similar):** the iPhone appears as a normal camera, so `cogsense run --source <index>` works directly with the full engine, including the LSL and WebSocket bus.
+
 ## Operator workflow
 
 1. Start `cogsense run`. The engine builds a **provisional** baseline from the first 30 confident frames, so output begins immediately.
@@ -172,12 +194,13 @@ cogsense bench --mediapipe     # per-frame latency: engine, CLAHE, landmarker
 
 ## Status against the acceptance criteria
 
-- **Implemented and covered by tests (81 tests):**
+- **Implemented and covered by tests (86 tests):**
   - AU extraction and pose invariance on synthetic meshes
   - calibration, speech mask, graceful fallback
   - MES / CFI / surprise logic and fusion/compound risk
   - WebSocket round-trip, LSL outlet, clock slewing
   - report and PDF export
+  - browser/Node engine parity with the Python engine, frame by frame
   - zero-video-retention behaviour
 - **Measured in a 4-core CPU container, with no GPU and no real face:**
   - CogSense engine: ~0.3 ms/frame

@@ -82,3 +82,44 @@ code { background: #0b0f14; padding: 1px 4px; border-radius: 3px; }
 @media (max-width: 1000px) {
   main { grid-template-columns: 1fr; grid-template-areas: "monitor" "aus" "timeline" "gaze" "findings"; padding: 12px 16px; }
 }
+
+/* ---------------------------------------------------------------- camera mode & mobile */
+html { -webkit-text-size-adjust: 100%; }
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); padding-bottom: env(safe-area-inset-bottom); }
+button { min-height: 36px; touch-action: manipulation; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button:disabled { opacity: .45; cursor: default; }
+input { font-size: 16px; } /* >=16px stops iOS Safari zooming the page on focus */
+#cameraBar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line); background: #10151c; }
+#cameraBar[hidden] { display: none; }
+#camStatus { flex: 1 1 260px; min-width: 0; }
+#camStatus.err { color: var(--bad); }
+body:not([data-mode="live"]) .grp-live { display: none; }
+.grp-live { display: contents; }
+.stage.cam { height: min(56vh, 560px); background: #000; }
+.stage.cam canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stage.cam #cameraVideo { opacity: 1; transform: scaleX(-1); /* selfie preview; landmarks are mirrored to match */ }
+#camOverlay { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px; text-align: center; font-weight: 600;
+  background: linear-gradient(transparent, #000c); pointer-events: none; }
+#camOverlay.calibrating { color: var(--warn); }
+#camOverlay.lost { color: var(--bad); }
+body[data-mode="camera"] .gaze { display: none; }
+body[data-mode="camera"] main { grid-template-areas: "monitor aus" "timeline timeline" "findings findings"; }
+@media (max-width: 1000px) {
+  body[data-mode="camera"] main { grid-template-areas: "monitor" "aus" "timeline" "findings"; }
+}
+@media (max-width: 600px) {
+  header { padding: 8px 12px; }
+  .controls { width: 100%; }
+  .seg { width: 100%; } .seg button { flex: 1; }
+  main { padding: 10px 12px; gap: 10px; }
+  .panel { padding: 8px 10px; }
+  .au-row { grid-template-columns: 112px 1fr 44px; gap: 8px; }
+  .meter .big { font-size: 26px; }
+  .meters { gap: 8px; }
+  .stage.cam { height: min(60vh, 480px); }
+  canvas#timeline { height: 220px; }
+  #findings { max-height: 220px; }
+  #cameraBar button { flex: 1 1 40%; }
+  #wsUrl { width: 100%; }
+}

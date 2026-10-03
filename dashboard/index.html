@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>CogSense HFE Console</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -12,16 +15,26 @@
   <div class="controls">
     <div class="seg" role="tablist">
       <button id="modeLive" class="on">Live</button>
+      <button id="modeCamera">Camera</button>
       <button id="modePlayback">Playback</button>
     </div>
-    <input id="wsUrl" value="ws://127.0.0.1:8765" spellcheck="false" aria-label="WebSocket URL">
-    <button id="connect">Connect</button>
-    <button id="calibrate" title="Run 15 s neutral baseline calibration">Calibrate</button>
-    <button id="record" title="Start/stop telemetry recording on the engine">Record</button>
-    <span id="conn" class="pill off">OFFLINE</span>
-    <span id="rec" class="pill">REC --:--:--</span>
+    <div class="grp-live">
+      <input id="wsUrl" value="ws://127.0.0.1:8765" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="WebSocket URL">
+      <button id="connect">Connect</button>
+      <button id="calibrate" title="Run 15 s neutral baseline calibration">Calibrate</button>
+      <button id="record" title="Start/stop telemetry recording on the engine">Record</button>
+      <span id="conn" class="pill off">OFFLINE</span>
+      <span id="rec" class="pill">REC --:--:--</span>
+    </div>
   </div>
 </header>
+
+<section id="cameraBar" hidden>
+  <button id="camStart" class="primary">Start camera</button>
+  <button id="camCalibrate" disabled title="15 s neutral-face baseline">Calibrate (15 s)</button>
+  <button id="camStop" disabled>Stop</button>
+  <span id="camStatus" class="muted">Uses this device’s front camera. Video is processed on the device and never uploaded or stored.</span>
+</section>
 
 <section id="playbackBar" hidden>
   <label class="file">Session JSONL <input type="file" id="fileSession" accept=".jsonl,.json,.ndjson"></label>
@@ -36,11 +49,14 @@
   <section class="panel monitor">
     <h2>Video monitor</h2>
     <div class="stage">
+      <video id="cameraVideo" muted playsinline autoplay hidden></video>
       <video id="operatorVideo" muted playsinline hidden></video>
       <canvas id="mesh" width="480" height="300"></canvas>
+      <div id="camOverlay" hidden></div>
     </div>
     <div class="status-row">
       <span>Face mesh: <b id="trackStatus">--</b> (<span id="trackConf">--</span>)</span>
+      <span id="perf" class="muted" hidden></span>
       <span>Calibration: <b id="calStatus">--</b></span>
     </div>
     <div class="status-row small">
@@ -91,6 +107,8 @@
     <div class="status-row small"><button id="exportJsonl">Export buffer (.jsonl)</button><span class="muted">Run <code>cogsense report file.jsonl --pdf out.pdf --csv out/</code> for the full dossier.</span></div>
   </section>
 </main>
+<script src="engine.js"></script>
+<script src="camera.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
