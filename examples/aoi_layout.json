@@ -1,0 +1,9 @@
+{
+  "aois": [
+    {"name": "TACTICAL_RADAR_WIDGET_PRIMARY", "x": 40, "y": 60, "w": 1100, "h": 700},
+    {"name": "TRACK_TABLE", "x": 1180, "y": 60, "w": 700, "h": 420},
+    {"name": "ASSET_STATUS_PANEL", "x": 1180, "y": 500, "w": 700, "h": 260},
+    {"name": "ENGAGEMENT_MENU_NESTED", "x": 40, "y": 800, "w": 700, "h": 240},
+    {"name": "COMMS_LOG", "x": 780, "y": 800, "w": 1100, "h": 240}
+  ]
+}

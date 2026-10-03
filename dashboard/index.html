@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CogSense HFE Console</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand">COGSENSE <span>HFE ANALYTICS CONSOLE</span></div>
+  <div class="controls">
+    <div class="seg" role="tablist">
+      <button id="modeLive" class="on">Live</button>
+      <button id="modePlayback">Playback</button>
+    </div>
+    <input id="wsUrl" value="ws://127.0.0.1:8765" spellcheck="false" aria-label="WebSocket URL">
+    <button id="connect">Connect</button>
+    <button id="calibrate" title="Run 15 s neutral baseline calibration">Calibrate</button>
+    <button id="record" title="Start/stop telemetry recording on the engine">Record</button>
+    <span id="conn" class="pill off">OFFLINE</span>
+    <span id="rec" class="pill">REC --:--:--</span>
+  </div>
+</header>
+
+<section id="playbackBar" hidden>
+  <label class="file">Session JSONL <input type="file" id="fileSession" accept=".jsonl,.json,.ndjson"></label>
+  <label class="file">Operator video <input type="file" id="fileOperator" accept="video/*"></label>
+  <label class="file">Screen recording <input type="file" id="fileScreen" accept="video/*"></label>
+  <label>Video offset (s) <input type="number" id="videoOffset" value="0" step="0.1"></label>
+  <button id="play">▶ Play</button>
+  <span id="playbackInfo" class="muted">Load a session file recorded with <code>--record</code> or <code>cogsense simulate --out</code>.</span>
+</section>
+
+<main>
+  <section class="panel monitor">
+    <h2>Video monitor</h2>
+    <div class="stage">
+      <video id="operatorVideo" muted playsinline hidden></video>
+      <canvas id="mesh" width="480" height="300"></canvas>
+    </div>
+    <div class="status-row">
+      <span>Face mesh: <b id="trackStatus">--</b> (<span id="trackConf">--</span>)</span>
+      <span>Calibration: <b id="calStatus">--</b></span>
+    </div>
+    <div class="status-row small">
+      <span>Yaw <b id="yaw">--</b>°</span><span>Pitch <b id="pitch">--</b>°</span><span>Roll <b id="roll">--</b>°</span>
+      <span>Blink <b id="blinkRate">--</b>/min</span><span id="speech" class="tag" hidden>SPEECH</span>
+    </div>
+  </section>
+
+  <section class="panel aus">
+    <h2>Action units</h2>
+    <div id="auBars"></div>
+    <div class="meters">
+      <div class="meter"><div class="label">Mental effort score</div><div class="big" id="mesVal">--</div><div class="bar"><i id="mesBar"></i></div></div>
+      <div class="meter"><div class="label">Cognitive friction index</div><div class="big" id="cfiVal">--</div><div class="bar"><i id="cfiBar"></i></div></div>
+    </div>
+    <div class="status-row small">
+      <span>AOI <b id="aoi">--</b></span><span>RULA <b id="rula">--</b> (neck <b id="neck">--</b>)</span>
+    </div>
+    <div class="insight" id="insight">--</div>
+  </section>
+
+  <section class="panel timeline">
+    <h2>Multimodal synchronized timeline</h2>
+    <canvas id="timeline" width="1200" height="260"></canvas>
+    <input type="range" id="scrub" min="0" max="0" value="0" step="1" aria-label="Timeline scrubber">
+    <div class="legend">
+      <span><i class="sw mes"></i>MES</span><span><i class="sw rula"></i>RULA grand</span>
+      <span><i class="sw cfi"></i>CFI event</span><span><i class="sw sur"></i>Automation surprise</span>
+      <span><i class="sw cmp"></i>Posture risk</span><span id="cursorTime" class="muted"></span>
+    </div>
+  </section>
+
+  <section class="panel gaze">
+    <h2>Gaze heatmap &amp; scan path</h2>
+    <div class="stage">
+      <video id="screenVideo" muted playsinline hidden></video>
+      <canvas id="gaze" width="480" height="270"></canvas>
+    </div>
+    <div class="status-row small">
+      <label class="file">AOI layout JSON <input type="file" id="fileAoi" accept=".json"></label>
+      <button id="sendAoi" title="Send this AOI layout to the engine">Push layout</button>
+    </div>
+  </section>
+
+  <section class="panel findings">
+    <h2>Correlated diagnostic findings</h2>
+    <ul id="findings"></ul>
+    <div class="status-row small"><button id="exportJsonl">Export buffer (.jsonl)</button><span class="muted">Run <code>cogsense report file.jsonl --pdf out.pdf --csv out/</code> for the full dossier.</span></div>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

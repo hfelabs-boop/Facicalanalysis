@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cogsense-hfe"
+version = "1.0.0"
+description = "CogSense HFE Module: facial action coding & micro-expression cognitive engine for human-factors evaluation"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24", "websockets>=12"]
+
+[project.optional-dependencies]
+vision = ["mediapipe>=0.10.14", "opencv-python-headless>=4.8"]
+lsl = ["pylsl>=1.16"]
+report = ["reportlab>=4.0"]
+all = ["cogsense-hfe[vision,lsl,report]"]
+dev = ["cogsense-hfe[all]", "pytest>=8"]
+
+[project.scripts]
+cogsense = "cogsense.cli:main"
+
+[tool.setuptools]
+packages = ["cogsense"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
