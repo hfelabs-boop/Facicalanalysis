@@ -50,6 +50,8 @@
       const q = new URLSearchParams(location.search);
       this.mpBase = (q.get("mp") || o.mpBase || DEFAULT_MP).replace(/\/$/, "");
       this.modelUrl = q.get("model") || o.modelUrl || DEFAULT_MODEL;
+      // A stalled download must end in a clear message, not an endless "Loading…" (weak mobile connections).
+      this.loadTimeoutMs = (Number(q.get("mptimeout")) || o.loadTimeoutS || 60) * 1000;
       this.engine = new window.CogSense.CogSenseEngine(o.config);
       this.stream = null;
       this.landmarker = null;
@@ -95,7 +97,8 @@
         await v.play();
         await this._whenReady(v);
         this.onStatus("loading-model");
-        await this._loadLandmarker();
+        await this._withTimeout(this._loadLandmarker(), this.loadTimeoutMs,
+          "The face tracker took too long to download. Check your connection and tap Start camera to try again.");
         document.addEventListener("visibilitychange", this._onVisibility);
         await this._acquireWakeLock();
         this.running = true;
@@ -159,6 +162,12 @@
     }
 
     // -------------------------------------------------------------- model
+    _withTimeout(promise, ms, message) {
+      let timer;
+      const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new CameraError("timeout", message)), ms); });
+      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+    }
+
     async _loadLandmarker() {
       const url = new URL(`${this.mpBase}/vision_bundle.mjs`, location.href).href;
       const wasm = new URL(`${this.mpBase}/wasm`, location.href).href;
